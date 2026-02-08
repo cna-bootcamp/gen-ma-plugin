@@ -146,7 +146,7 @@ AI가 작업별로 로드할 문서를 정의함. 이미 로드한 문서는 재
 | 3 | tier는 HEAVY / HIGH / MEDIUM / LOW 중 하나만 사용 | 런타임 매핑 표준 |
 | 4 | 위임형 스킬(Core, Planning, Orchestrator)은 라우팅+오케스트레이션만 수행, 작업 실행은 에이전트에 위임. 직결형 스킬(Setup, Utility)은 Gateway 직접 사용 허용 | 관심사 분리 + 실용성 |
 | 5 | Skill→Agent 위임은 Task 도구, Skill→Skill 위임은 Skill 도구 사용 | 위임 메커니즘 구분 |
-| 6 | 추상 선언(config/tools.yaml)과 구체 매핑(runtime-mapping.yaml) 분리 | Dependency Inversion |
+| 6 | 추상 선언(tools.yaml)과 구체 매핑(runtime-mapping.yaml) 분리 | Dependency Inversion |
 | 7 | 스킬 네임스페이스는 `{plugin-name}:{skill-name}` 형식 | 충돌 방지 |
 | 8 | `/{plugin-name}:{skill-name}` 형식의 진입점 위해 커맨드 생성 | 슬래시 명령 노출 |
 | 9 | setup 스킬 반드시 포함 | 설치/라우팅 등록 |

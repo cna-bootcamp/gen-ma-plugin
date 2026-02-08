@@ -82,13 +82,15 @@ mcp_servers:
 
 # ─────────────────────────────────────────────
 # LSP 서버 — 코드 분석 도구 제공
+#   주의: OMC 기본 제공 LSP(lsp_hover 등 12개)와 중복되지 않는
+#   플러그인 고유 언어 서버만 선언
 # ─────────────────────────────────────────────
 lsp_servers:
-  - name: typescript-language-server
-    description: "TypeScript/JavaScript 코드 분석, 진단, 리팩토링"
-    install: "npm install -g typescript-language-server"
-    check: "typescript-language-server --version"
-    required: true
+  - name: graphql-language-server
+    description: "GraphQL 스키마 검증 및 자동완성"
+    install: "npm install -g graphql-language-service-cli"
+    check: "graphql-lsp --version"
+    required: false
 
 # ─────────────────────────────────────────────
 # 커스텀 도구 — 플러그인 자체 구현
@@ -124,6 +126,43 @@ custom_tools:
 > - `required: false`인 항목은 실패해도 경고만 출력하고 계속 진행
 > - `check` 명령으로 이미 설치된 도구의 중복 설치를 방지
 > - MCP 서버의 `config` 파일은 런타임 중립적 JSON 포맷으로 작성
+
+### 중복 설치 금지
+
+런타임 빌트인 도구와 오케스트레이션 플러그인(OMC 등)이 기본 제공하는 MCP/LSP는
+install.yaml에 포함하지 않음. 이미 설치된 도구를 중복 등록하면 충돌·오류 발생 가능.
+
+**Claude Code 빌트인 도구 (런타임 내장):**
+
+| 유형 | 도구 |
+|------|------|
+| File | `Read`, `Write`, `Edit`, `Glob`, `Grep` |
+| Shell | `Bash` |
+| Web | `WebSearch`, `WebFetch` |
+| Agent | `Task` |
+| UI | `AskUserQuestion` |
+| Notebook | `NotebookEdit` |
+| Planning | `EnterPlanMode`, `ExitPlanMode` |
+| Task 관리 | `TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGet` |
+| Skill | `Skill` |
+
+**OMC 기본 제공 MCP 서버:**
+
+| 서버 | 별칭 | 제공 도구 |
+|------|------|----------|
+| OMC Tools | `t` | LSP 12개 + AST 2개 + Python REPL + skills/state/notepad/memory/trace |
+| Codex Bridge | `x` | `ask_codex` (OpenAI 모델 위임) |
+| Gemini Bridge | `g` | `ask_gemini` (Google 모델 위임) |
+
+**OMC Tools 상세 (LSP·AST):**
+
+| 카테고리 | 도구 |
+|----------|------|
+| LSP (12개) | `lsp_hover`, `lsp_goto_definition`, `lsp_find_references`, `lsp_document_symbols`, `lsp_workspace_symbols`, `lsp_diagnostics`, `lsp_diagnostics_directory`, `lsp_prepare_rename`, `lsp_rename`, `lsp_code_actions`, `lsp_code_action_resolve`, `lsp_servers` |
+| AST (2개) | `ast_grep_search`, `ast_grep_replace` |
+| Python (1개) | `python_repl` |
+
+> **원칙**: install.yaml에는 위 목록에 없는 플러그인 고유 MCP/LSP/커스텀 도구만 선언함.
 
 ### 설치 실행 메커니즘
 
@@ -276,6 +315,7 @@ action_mapping:
 - 각 티어는 `model` + `budget`을 함께 정의 — 에이전트 패키지에 예산 파일 불필요
 - 에이전트별 예외에서 `budget` 생략 시 default의 해당 티어 budget 적용
 - 티어는 LLM 모델 등급 선언 — Gateway가 실제 모델명으로 매핑
+- 모델명은 **작성 시점의 최신 버전**을 사용 — 신규 모델 출시 시 이 파일만 갱신하면 전체 에이전트에 반영
 
 **Anthropic 모델 매핑 예시**:
 
@@ -311,32 +351,6 @@ action_mapping:
 
 - `forbidden_actions`의 추상 카테고리를 실제 도구명으로 변환
 - 런타임이 에이전트에게 금지 도구를 제외할 때 참조
-
-[Top](#gateway-표준)
-
----
-
-## 추상→구체 매핑 다이어그램
-
-```
-Plugin Layer (추상)              Gateway (구체)
-─────────────────────           ─────────────────────
-agentcard.yaml                     runtime-mapping.yaml
-  tier: HIGH          ──매핑──→   HIGH: { model: claude-opus-4-6, budget: {...} }
-  forbidden: file_write ──매핑──→   file_write: [Write, Edit]
-
-tools.yaml                      runtime-mapping.yaml
-  code_search         ──매핑──→   lsp: lsp_workspace_symbols
-  code_diagnostics    ──매핑──→   lsp: lsp_diagnostics
-
-
-실행 흐름
-─────────
-① 런타임이 에이전트의 agentcard.yaml/tools.yaml 읽기
-② runtime-mapping.yaml 참조하여 구체 도구로 변환
-③ 변환된 도구를 에이전트에게 제공
-④ 에이전트가 실제 도구를 사용하여 작업 수행
-```
 
 [Top](#gateway-표준)
 
@@ -436,6 +450,7 @@ action_mapping:
 |---|----------|
 | 1 | install.yaml에 설치 명령을 직접 포함 (데이터만, 실행은 setup 스킬) |
 | 2 | builtin 도구(Read, Write, Bash)를 tool_mapping에 포함 (런타임 내장 처리) |
+| 3 | install.yaml에 런타임 빌트인 도구 또는 OMC 기본 제공 MCP/LSP 포함 (중복 설치 금지) |
 
 [Top](#gateway-표준)
 
@@ -452,5 +467,7 @@ action_mapping:
 - [ ] MCP 서버 config JSON 파일 존재 확인
 - [ ] setup 스킬이 install.yaml을 참조하도록 구성됨
 - [ ] builtin 도구(Read, Write, Bash)가 tool_mapping에 없음 (런타임 내장)
+- [ ] install.yaml에 런타임 빌트인/OMC 기본 도구가 포함되지 않음 (중복 설치 금지)
+- [ ] tier_mapping 모델명이 작성 시점의 최신 버전임
 
 [Top](#gateway-표준)

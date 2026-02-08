@@ -579,7 +579,7 @@ agents/
 | 4 | 하나의 에이전트는 하나의 전문 역할만 담당 (역할 단일성) |
 | 5 | 역할 밖 요청은 handoff로 적절한 에이전트에 위임 |
 | 6 | AGENT.md에 Frontmatter(name, description) + 목표 + 참조 + 워크플로우 섹션 필수 포함 |
-| 7 | AGENT.md에 참조 섹션으로 agentcard.yaml과 tools.yaml 참조 지시 포함 |
+| 7 | AGENT.md에 참조 섹션으로 agentcard.yaml 참조 지시 필수, tools.yaml은 있는 경우 참조 지시 포함 |
 | 8 | forbidden_actions는 블랙리스트 방식 (나열되지 않은 것은 허용) |
 | 9 | 티어 변형 에이전트는 inherits로 기본 에이전트 상속, 오버라이드만 기술 |
 
@@ -609,13 +609,13 @@ agents/
 - [ ] agentcard.yaml에 name, version, tier, capabilities, handoff 포함
 - [ ] tier 값이 HEAVY / HIGH / MEDIUM / LOW 중 하나
 - [ ] AGENT.md에 구체 도구명/모델명 하드코딩 없음 (`{tool:name}` 추상 참조만 허용)
-- [ ] AGENT.md의 `{tool:name}` 참조가 tools.yaml의 name과 일치
+- [ ] tools.yaml이 있는 경우: AGENT.md의 `{tool:name}` 참조가 tools.yaml의 name과 일치
 - [ ] capabilities.identity에 is/is_not 구분됨
 - [ ] handoff에 target, when, reason 포함
 - [ ] 티어 변형이면 inherits 필드 + escalation 목록 포함
 - [ ] 역할 단일성: 하나의 전문 역할에만 집중
 - [ ] AGENT.md는 WHY+HOW만, agentcard.yaml은 WHO+WHAT+WHEN만 기술 (경계 원칙 준수)
 - [ ] AGENT.md와 agentcard.yaml 간 동일 정보 중복 없음
-- [ ] tools.yaml 선언 도구가 Gateway의 runtime-mapping.yaml에 매핑됨
+- [ ] tools.yaml이 있는 경우: 선언 도구가 Gateway의 runtime-mapping.yaml에 매핑됨
 
 [Top](#agent-표준)

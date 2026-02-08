@@ -162,6 +162,17 @@ LLM 기반 런타임(Claude Code 등)은 코드로 매핑을 파싱하는 것이
 
 ---
 
+## MUST NOT 규칙
+
+| # | 금지 사항 |
+|---|----------|
+| 1 | 런타임이 플러그인 표준 파일(AGENT.md, agentcard.yaml, tools.yaml 등) 변경 금지 — 해석만 수행 |
+| 2 | 매핑 테이블에 없는 도구를 에이전트에 임의 제공 금지 — 미매핑 선언은 기본값으로 처리 |
+
+[Top](#runtime-표준)
+
+---
+
 ## 검증 체크리스트
 
 - [ ] 에이전트 패키지 3파일(AGENT.md, agentcard.yaml, tools.yaml) 로드 가능
