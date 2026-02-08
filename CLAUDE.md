@@ -41,7 +41,7 @@
 # URL링크 참조
 - URL링크는 WebFetch가 아닌 'curl {URL} > claude/{filename}'명령으로 저장
 - 동일한 파일이 있으면 덮어 씀 
-- 'claude'디렉토리가 없으면 생성하고 다운로드   
+- 'downloads'디렉토리가 없으면 생성하고 다운로드   
 - 저장된 파일을 읽어 사용함
 
 # 마크다운 작성 가이드
@@ -98,7 +98,7 @@
 
 # 가이드문서
 - Dify-DSL-가이드
-  - url: https://raw.githubusercontent.com/cna-bootcamp/aistudy/refs/heads/main/develop-agent/guide/dify-workflow-dsl-guide.md
+  - url: https://raw.githubusercontent.com/cna-bootcamp/gen-ma-plugin/refs/heads/main/guides/dify-workflow-dsl-guide.md
   - filename: dify-workflow-dsl-guide.md
 
 # Lessons Learned
