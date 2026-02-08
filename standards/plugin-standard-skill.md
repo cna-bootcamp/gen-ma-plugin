@@ -330,15 +330,16 @@ Task(
 
 | 워크플로우 단계 | 추천 스킬 | 효과 | 적용 |
 |----------------|----------|------|:----:|
-| 전략 계획 수립 | `/oh-my-claudecode:plan`, `/oh-my-claudecode:ralplan` | 체계적 계획 방법론 | **필수** |
-| 기능 구현 | `/oh-my-claudecode:tdd`, `/oh-my-claudecode:autopilot` | 품질 보장 워크플로우 | **필수** |
+| 기획 수립 | `/oh-my-claudecode:plan` | 요구사항 도출 워크플로우 | **필수** |
+| 개발 계획 수립 | `/oh-my-claudecode:ralplan` | 기술 합의 워크플로우 | **필수** |
+| 기능 구현 | `/oh-my-claudecode:ralph` | 완료 보장 실행 워크플로우 | **필수** |
 | 빌드 오류 수정 | `/oh-my-claudecode:build-fix` | 최소 수정 원칙 | **필수** |
 | QA/검증 | `/oh-my-claudecode:ultraqa` | QA 순환 워크플로우 | **필수** |
 | 계획 검토 | `/oh-my-claudecode:review` | 비평 전문 워크플로우 | 선택 |
 | 심층 분석/디버깅 | `/oh-my-claudecode:analyze` | 체계적 분석 절차 | 선택 |
 | 코드베이스 탐색 | `/oh-my-claudecode:deepsearch` | 심층 검색 방법론 | 선택 |
 | 코드 리뷰 | `/oh-my-claudecode:code-review` | 종합 리뷰 체크리스트 | 선택 |
-| 보안 검토 | `/security-review` | 보안 감사 (네이티브 스킬) | 선택 |
+| 보안 검토 | `/oh-my-claudecode:security-review` | 보안 감사 워크플로우 | 선택 |
 | 리서치/조사 | `/oh-my-claudecode:research` | 병렬 조사 방법론 | 선택 |
 
 > **적용 위치**: 스킬의 워크플로우 섹션에 명시.

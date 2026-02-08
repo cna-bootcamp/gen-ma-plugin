@@ -83,7 +83,7 @@ DMAP:  Anyone writes Markdown/YAML   → Any Runtime executes agents
 | **Clean Architecture** | 위임형: Skills → Agents → Gateway 단방향 의존. 직결형: Skills → Gateway 직접 접근 허용. Hooks가 횡단적 개입(AOP) |
 | **YAGNI** | 필요하지 않은 계층은 생략 — 직결형 스킬(Setup, Utility)에 Agent 위임을 강제하지 않음 |
 
-> YANGI(You Aren't Gonna Need It): 불필요한 걸 미리 만들지 말라는 XP 설계 철학
+> YAGNI(You Aren't Gonna Need It): 불필요한 걸 미리 만들지 말라는 XP 설계 철학
   
 [Top](#dmap-빌더-표준)
 
