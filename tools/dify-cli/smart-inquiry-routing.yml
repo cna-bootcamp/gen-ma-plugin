@@ -1,0 +1,775 @@
+app:
+  description: 고객 문의 접수부터 담당자 배정까지의 반복 업무를 자동화하여 처리 속도를 극대화하고 수작업 개입을 최소화하는 워크플로우
+  icon: 🤖
+  icon_background: '#E3F2FD'
+  mode: workflow
+  name: Smart CSR Router
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/groq:0.0.12@38f75b2f4a3687af7b0947693c7903f5c7d8756f217ea492b8b81de6f16601f6
+    version: null
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: Google Apps Script 웹앱 URL (Gmail 발송용)
+    id: ec77ba47-0000-4000-8000-000000000000
+    name: GMAIL_APPS_SCRIPT_URL
+    selector:
+    - env
+    - GMAIL_APPS_SCRIPT_URL
+    value: https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
+    value_type: string
+  - description: 즉시 배정 알림 수신 이메일
+    id: ec77ba47-1111-4111-8111-111111111111
+    name: ALERT_EMAIL
+    selector:
+    - env
+    - ALERT_EMAIL
+    value: alert-team@example.com
+    value_type: string
+  - description: 관리자 확인 요청 수신 이메일
+    id: ec77ba47-2222-4222-8222-222222222222
+    name: MANAGER_EMAIL
+    selector:
+    - env
+    - MANAGER_EMAIL
+    value: manager@example.com
+    value_type: string
+  - description: 수동 분류 큐 담당자 이메일
+    id: ec77ba47-3333-4333-8333-333333333333
+    name: MANUAL_QUEUE_EMAIL
+    selector:
+    - env
+    - MANUAL_QUEUE_EMAIL
+    value: manual-queue@example.com
+    value_type: string
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: llm
+      id: edge-1-2
+      source: '1'
+      sourceHandle: source
+      target: '2'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: code
+      id: edge-2-3
+      source: '2'
+      sourceHandle: source
+      target: '3'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: edge-3-4
+      source: '3'
+      sourceHandle: source
+      target: '4'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: edge-4-5
+      source: '4'
+      sourceHandle: 'true'
+      target: '5'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: edge-4-6
+      source: '4'
+      sourceHandle: b7e9f1a2-3c4d-5e6f-7a8b-9c0d1e2f3a4b
+      target: '6'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: edge-4-7
+      source: '4'
+      sourceHandle: 'false'
+      target: '7'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: variable-aggregator
+      id: edge-5-8
+      source: '5'
+      sourceHandle: source
+      target: '8'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: variable-aggregator
+      id: edge-6-8
+      source: '6'
+      sourceHandle: source
+      target: '8'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: variable-aggregator
+      id: edge-7-8
+      source: '7'
+      sourceHandle: source
+      target: '8'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: template
+      id: edge-8-9
+      source: '8'
+      sourceHandle: source
+      target: '9'
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: template
+        targetType: end
+      id: edge-9-10
+      source: '9'
+      sourceHandle: source
+      target: '10'
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        desc: 고객 문의 데이터 입력
+        selected: false
+        title: 시작
+        type: start
+        variables:
+        - label: 문의 제목
+          max_length: 200
+          options: []
+          required: true
+          type: text-input
+          variable: inquiry_title
+        - label: 문의 본문
+          max_length: 5000
+          options: []
+          required: true
+          type: paragraph
+          variable: inquiry_content
+        - label: 주문 번호
+          max_length: 50
+          options: []
+          required: false
+          type: text-input
+          variable: order_number
+        - label: 고객 등급
+          options:
+          - VIP
+          - 일반
+          - 신규
+          required: true
+          type: select
+          variable: customer_grade
+      height: 214
+      id: '1'
+      position:
+        x: 30
+        y: 300
+      positionAbsolute:
+        x: 30
+        y: 300
+      selected: false
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 문의 내용을 분석하여 분류, 우선순위, 담당팀을 판정
+        model:
+          completion_params:
+            max_tokens: 1024
+            temperature: 0.1
+          mode: chat
+          name: llama-3.1-8b-instant
+          provider: langgenius/groq/groq
+        prompt_template:
+        - id: system-prompt
+          role: system
+          text: '당신은 온라인 쇼핑몰 CS 운영팀의 숙련된 문의 분류 전문가입니다.
+
+            빠르고 정확한 분류를 최우선으로 하며, 모호한 문의도 과거 이력을 참고하여 최적의 분류를 수행합니다.
+
+
+            ## 분류 체계
+
+
+            대분류: 배송, 결제, 교환/반품, 환불, 상품문의, 회원/계정, 기타
+
+            중분류 예시:
+
+            - 배송: 배송 지연, 배송 오류, 배송지 변경, 배송 추적
+
+            - 결제: 결제 오류, 이중 결제, 결제 취소, 포인트/쿠폰
+
+            - 교환/반품: 사이즈 교환, 색상 교환, 불량 반품, 단순 변심
+
+            - 환불: 부분 환불, 전체 환불, 환불 지연
+
+            - 상품문의: 재입고, 상품 상세, 사이즈 안내
+
+            - 회원/계정: 로그인, 회원정보, 비밀번호
+
+
+            ## 우선순위 산정 기준
+
+
+            - 긴급: 결제 오류, 이중 결제, VIP 고객의 긴급 요청, "급해요/빨리" 등 긴급 키워드
+
+            - 높음: 배송 지연(3일 이상), 불량 반품, 환불 지연
+
+            - 보통: 일반 교환/반품, 배송 추적, 상품 문의
+
+            - 낮음: 단순 문의, 재입고 문의, 일반 안내
+
+
+            ## 담당팀 배정 규칙
+
+
+            - 배송 → 배송팀
+
+            - 결제/환불 → 결제팀
+
+            - 교환/반품 → 교환반품팀
+
+            - 상품문의 → 상품팀
+
+            - 회원/계정 → 회원관리팀
+
+            - 기타/미분류 → CS관리팀
+
+
+            ## 예상 처리 시간 기준
+
+
+            - 긴급: 1시간 이내
+
+            - 높음: 4시간 이내
+
+            - 보통: 24시간 이내
+
+            - 낮음: 48시간 이내
+
+
+            ## 응답 형식
+
+
+            반드시 아래 JSON 형식으로만 응답하세요. JSON 외 다른 텍스트는 포함하지 마세요.
+
+
+            {"major_category": "대분류", "mid_category": "중분류", "minor_category": "소분류
+            (없으면 빈 문자열)", "confidence": 85, "priority": "보통", "assigned_team": "배송팀",
+            "estimated_time": "24시간 이내", "summary": "문의 요약 (1~2문장)", "classification_reason":
+            "분류 근거 (1문장)"}
+
+
+            ## 금지 사항
+
+
+            - 고객에게 직접 응답하지 않음 (내부 처리 전용)
+
+            - 개인정보(이름, 전화번호, 주소)를 결과에 포함하지 않음
+
+            - 분류 불확실 시 임의 판단하지 않고 confidence를 낮게 설정
+
+            - 분류 체계에 없는 유형 발견 시 대분류를 ''기타''로 처리'
+        - id: user-prompt
+          role: user
+          text: '## 문의 정보
+
+
+            - 문의 제목: {{#1.inquiry_title#}}
+
+            - 문의 본문: {{#1.inquiry_content#}}
+
+            - 주문 번호: {{#1.order_number#}}
+
+            - 고객 등급: {{#1.customer_grade#}}
+
+
+            위 문의를 분석하여 JSON 형식으로 분류 결과를 반환하세요.'
+        selected: false
+        structured_output_enabled: false
+        title: LLM 문의분류
+        type: llm
+        vision:
+          enabled: false
+      height: 131
+      id: '2'
+      position:
+        x: 334
+        y: 300
+      positionAbsolute:
+        x: 334
+        y: 300
+      selected: false
+      type: custom
+      width: 241
+    - data:
+        code: "import json\n\ndef main(llm_output: str) -> dict:\n    try:\n     \
+          \   clean = llm_output.strip()\n        if clean.startswith('```'):\n  \
+          \          clean = clean.split('\\n', 1)[1] if '\\n' in clean else clean[3:]\n\
+          \            if clean.endswith('```'):\n                clean = clean[:-3]\n\
+          \            clean = clean.strip()\n        result = json.loads(clean)\n\
+          \        return {\n            \"major_category\": str(result.get(\"major_category\"\
+          , \"기타\")),\n            \"mid_category\": str(result.get(\"mid_category\"\
+          , \"미분류\")),\n            \"minor_category\": str(result.get(\"minor_category\"\
+          , \"\")),\n            \"confidence\": int(result.get(\"confidence\", 0)),\n\
+          \            \"priority\": str(result.get(\"priority\", \"보통\")),\n    \
+          \        \"assigned_team\": str(result.get(\"assigned_team\", \"CS관리팀\"\
+          )),\n            \"estimated_time\": str(result.get(\"estimated_time\",\
+          \ \"24시간 이내\")),\n            \"summary\": str(result.get(\"summary\", \"\
+          \")),\n            \"classification_reason\": str(result.get(\"classification_reason\"\
+          , \"\"))\n        }\n    except (json.JSONDecodeError, ValueError, KeyError):\n\
+          \        return {\n            \"major_category\": \"기타\",\n           \
+          \ \"mid_category\": \"미분류\",\n            \"minor_category\": \"\",\n  \
+          \          \"confidence\": 0,\n            \"priority\": \"보통\",\n     \
+          \       \"assigned_team\": \"CS관리팀\",\n            \"estimated_time\": \"\
+          24시간 이내\",\n            \"summary\": \"JSON 파싱 실패\",\n            \"classification_reason\"\
+          : \"LLM 응답 파싱 오류\"\n        }\n"
+        code_language: python3
+        desc: LLM 응답 JSON을 파싱하여 개별 변수로 분리
+        outputs:
+          assigned_team:
+            children: null
+            type: string
+          classification_reason:
+            children: null
+            type: string
+          confidence:
+            children: null
+            type: number
+          estimated_time:
+            children: null
+            type: string
+          major_category:
+            children: null
+            type: string
+          mid_category:
+            children: null
+            type: string
+          minor_category:
+            children: null
+            type: string
+          priority:
+            children: null
+            type: string
+          summary:
+            children: null
+            type: string
+        selected: false
+        title: JSON 파싱
+        type: code
+        variables:
+        - value_selector:
+          - '2'
+          - text
+          variable: llm_output
+      height: 95
+      id: '3'
+      position:
+        x: 638
+        y: 300
+      positionAbsolute:
+        x: 638
+        y: 300
+      selected: false
+      type: custom
+      width: 241
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: ≥
+            id: cond-confidence-90
+            value: '90'
+            varType: number
+            variable_selector:
+            - '3'
+            - confidence
+          id: 'true'
+          logical_operator: and
+        - case_id: b7e9f1a2-3c4d-5e6f-7a8b-9c0d1e2f3a4b
+          conditions:
+          - comparison_operator: ≥
+            id: cond-confidence-70
+            value: '70'
+            varType: number
+            variable_selector:
+            - '3'
+            - confidence
+          id: b7e9f1a2-3c4d-5e6f-7a8b-9c0d1e2f3a4b
+          logical_operator: and
+        desc: 분류 신뢰도에 따른 처리 경로 분기
+        selected: false
+        title: 신뢰도 분기
+        type: if-else
+      height: 199
+      id: '4'
+      position:
+        x: 942
+        y: 300
+      positionAbsolute:
+        x: 942
+        y: 300
+      selected: false
+      type: custom
+      width: 241
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - type: text
+            value: "{\n  \"to\": \"{{#env.ALERT_EMAIL#}}\",\n  \"subject\": \"[자동배정]\
+              \ {{#3.priority#}} - {{#3.major_category#}} > {{#3.mid_category#}}\"\
+              ,\n  \"body\": \"<h2>문의 자동 배정 알림</h2><table border='1' cellpadding='8'\
+              \ cellspacing='0' style='border-collapse:collapse'><tr><th>문의 제목</th><td>{{#1.inquiry_title#}}</td></tr><tr><th>분류</th><td>{{#3.major_category#}}\
+              \ &gt; {{#3.mid_category#}}</td></tr><tr><th>우선순위</th><td>{{#3.priority#}}</td></tr><tr><th>담당팀</th><td>{{#3.assigned_team#}}</td></tr><tr><th>신뢰도</th><td>{{#3.confidence#}}%</td></tr><tr><th>예상\
+              \ 처리시간</th><td>{{#3.estimated_time#}}</td></tr><tr><th>요약</th><td>{{#3.summary#}}</td></tr><tr><th>분류\
+              \ 근거</th><td>{{#3.classification_reason#}}</td></tr></table>\"\n}"
+          type: json
+        desc: 신뢰도 90% 이상 - 담당팀에 즉시 자동 배정 Gmail 알림
+        headers: Content-Type:application/json
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 1000
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 60
+          max_write_timeout: 60
+        title: 즉시 배정 알림
+        type: http-request
+        url: '{{#env.GMAIL_APPS_SCRIPT_URL#}}'
+      height: 167
+      id: '5'
+      position:
+        x: 1246
+        y: 100
+      positionAbsolute:
+        x: 1246
+        y: 100
+      selected: false
+      type: custom
+      width: 241
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - type: text
+            value: "{\n  \"to\": \"{{#env.MANAGER_EMAIL#}}\",\n  \"subject\": \"[관리자확인]\
+              \ {{#3.priority#}} - {{#3.major_category#}} > {{#3.mid_category#}}\"\
+              ,\n  \"body\": \"<h2>관리자 확인 요청</h2><p style='color:orange;font-weight:bold'>신뢰도\
+              \ 70~89% - 관리자 검토가 필요합니다.</p><table border='1' cellpadding='8' cellspacing='0'\
+              \ style='border-collapse:collapse'><tr><th>문의 제목</th><td>{{#1.inquiry_title#}}</td></tr><tr><th>분류</th><td>{{#3.major_category#}}\
+              \ &gt; {{#3.mid_category#}}</td></tr><tr><th>우선순위</th><td>{{#3.priority#}}</td></tr><tr><th>담당팀</th><td>{{#3.assigned_team#}}</td></tr><tr><th>신뢰도</th><td>{{#3.confidence#}}%</td></tr><tr><th>예상\
+              \ 처리시간</th><td>{{#3.estimated_time#}}</td></tr><tr><th>요약</th><td>{{#3.summary#}}</td></tr><tr><th>분류\
+              \ 근거</th><td>{{#3.classification_reason#}}</td></tr></table>\"\n}"
+          type: json
+        desc: 신뢰도 70~89% - 자동 배정 후 관리자 확인 Gmail 알림
+        headers: Content-Type:application/json
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 1000
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 60
+          max_write_timeout: 60
+        title: 배정+관리자 확인
+        type: http-request
+        url: '{{#env.GMAIL_APPS_SCRIPT_URL#}}'
+      height: 167
+      id: '6'
+      position:
+        x: 1246
+        y: 300
+      positionAbsolute:
+        x: 1246
+        y: 300
+      selected: false
+      type: custom
+      width: 241
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - type: text
+            value: "{\n  \"to\": \"{{#env.MANUAL_QUEUE_EMAIL#}}\",\n  \"subject\"\
+              : \"[수동분류] 신뢰도 {{#3.confidence#}}% - {{#1.inquiry_title#}}\",\n  \"\
+              body\": \"<h2>수동 분류 필요</h2><p style='color:red;font-weight:bold'>신뢰도\
+              \ 70% 미만 - 수동 분류가 필요합니다.</p><table border='1' cellpadding='8' cellspacing='0'\
+              \ style='border-collapse:collapse'><tr><th>문의 제목</th><td>{{#1.inquiry_title#}}</td></tr><tr><th>문의\
+              \ 본문</th><td>{{#1.inquiry_content#}}</td></tr><tr><th>신뢰도</th><td>{{#3.confidence#}}%</td></tr><tr><th>AI\
+              \ 요약</th><td>{{#3.summary#}}</td></tr><tr><th>사유</th><td>신뢰도 70% 미만으로\
+              \ 수동 분류 필요</td></tr></table>\"\n}"
+          type: json
+        desc: 신뢰도 70% 미만 - 수동 분류 큐 Gmail 알림
+        headers: Content-Type:application/json
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 1000
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 60
+          max_write_timeout: 60
+        title: 수동 분류 이관
+        type: http-request
+        url: '{{#env.GMAIL_APPS_SCRIPT_URL#}}'
+      height: 167
+      id: '7'
+      position:
+        x: 1246
+        y: 500
+      positionAbsolute:
+        x: 1246
+        y: 500
+      selected: false
+      type: custom
+      width: 241
+    - data:
+        advanced_settings:
+          group_enabled: false
+          groups: []
+        desc: 3개 분기의 알림 전송 결과를 통합
+        output_type: string
+        selected: false
+        title: 결과 통합
+        type: variable-aggregator
+        variables:
+        - - '5'
+          - body
+        - - '6'
+          - body
+        - - '7'
+          - body
+      height: 188
+      id: '8'
+      position:
+        x: 1550
+        y: 300
+      positionAbsolute:
+        x: 1550
+        y: 300
+      selected: false
+      type: custom
+      width: 241
+    - data:
+        desc: 처리 결과를 로그 형식으로 정리
+        selected: false
+        template: '## 문의 처리 로그
+
+
+          - 문의 제목: {{ inquiry_title }}
+
+          - 분류: {{ major_category }} > {{ mid_category }}{% if minor_category %} >
+          {{ minor_category }}{% endif %}
+
+          - 신뢰도: {{ confidence }}%
+
+          - 우선순위: {{ priority }}
+
+          - 배정팀: {{ assigned_team }}
+
+          - 예상 처리 시간: {{ estimated_time }}
+
+          - 분류 근거: {{ classification_reason }}
+
+          - 요약: {{ summary }}
+
+          - 처리 방식: {% if confidence | int >= 90 %}자동 배정 (즉시 실행){% elif confidence
+          | int >= 70 %}자동 배정 (관리자 확인 필요){% else %}수동 분류 큐 이관{% endif %}
+
+          '
+        title: 처리 로그
+        type: template-transform
+        variables:
+        - value_selector:
+          - '1'
+          - inquiry_title
+          variable: inquiry_title
+        - value_selector:
+          - '3'
+          - major_category
+          variable: major_category
+        - value_selector:
+          - '3'
+          - mid_category
+          variable: mid_category
+        - value_selector:
+          - '3'
+          - minor_category
+          variable: minor_category
+        - value_selector:
+          - '3'
+          - confidence
+          variable: confidence
+        - value_selector:
+          - '3'
+          - priority
+          variable: priority
+        - value_selector:
+          - '3'
+          - assigned_team
+          variable: assigned_team
+        - value_selector:
+          - '3'
+          - estimated_time
+          variable: estimated_time
+        - value_selector:
+          - '3'
+          - classification_reason
+          variable: classification_reason
+        - value_selector:
+          - '3'
+          - summary
+          variable: summary
+      height: 79
+      id: '9'
+      position:
+        x: 1854
+        y: 300
+      positionAbsolute:
+        x: 1854
+        y: 300
+      selected: false
+      type: custom
+      width: 241
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - '3'
+          - major_category
+          variable: major_category
+        - value_selector:
+          - '3'
+          - mid_category
+          variable: mid_category
+        - value_selector:
+          - '3'
+          - minor_category
+          variable: minor_category
+        - value_selector:
+          - '3'
+          - confidence
+          variable: confidence
+        - value_selector:
+          - '3'
+          - priority
+          variable: priority
+        - value_selector:
+          - '3'
+          - assigned_team
+          variable: assigned_team
+        - value_selector:
+          - '3'
+          - estimated_time
+          variable: estimated_time
+        selected: false
+        title: 완료
+        type: end
+      height: 243
+      id: '10'
+      position:
+        x: 2158
+        y: 300
+      positionAbsolute:
+        x: 2158
+        y: 300
+      selected: true
+      type: custom
+      width: 241
+    viewport:
+      x: -694
+      y: 13
+      zoom: 0.8
+  rag_pipeline_variables: []
