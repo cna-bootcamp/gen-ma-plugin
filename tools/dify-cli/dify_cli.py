@@ -26,13 +26,14 @@ load_dotenv(Path(__file__).parent / ".env")
 
 from config import DifyConfig
 from dify_client import DifyClient, DifyClientError
-from validate_dsl import validate_dsl, print_result
 
 # Windows 콘솔 UTF-8 출력 지원
 import io
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
+from validate_dsl import validate_dsl, print_result as print_validation_result
 
 # .env 기본값 (~, $USERPROFILE 등 환경변수 확장 지원)
 DEFAULT_APP_ID = os.getenv("DIFY_DEFAULT_APP_ID", "")
@@ -332,7 +333,7 @@ def cmd_validate(args):
         sys.exit(1)
 
     result = validate_dsl(str(file_path))
-    print_result(result, str(file_path))
+    print_validation_result(result, str(file_path))
     if not result.is_valid:
         sys.exit(1)
 

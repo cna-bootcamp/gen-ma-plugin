@@ -16,7 +16,8 @@ import json
 import re
 
 # Windows 콘솔 UTF-8 출력 설정
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if sys.platform == "win32" and not isinstance(sys.stdout, io.TextIOWrapper):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 from pathlib import Path
 from dataclasses import dataclass, field
 from enum import Enum
