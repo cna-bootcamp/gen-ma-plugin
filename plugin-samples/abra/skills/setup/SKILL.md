@@ -2,7 +2,7 @@
 name: setup
 description: Abra 플러그인 초기 설정
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # setup

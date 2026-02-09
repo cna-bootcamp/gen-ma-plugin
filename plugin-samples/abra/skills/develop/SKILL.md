@@ -59,7 +59,7 @@ Option A(Dify 런타임 활용) 또는 Option B(코드 기반 전환) 방식을 
 - dev-plan.md 없음 → `/abra:dev-plan` 스킬로 위임
 - DSL 파일 없음 → `/abra:dsl-generate` 스킬로 위임
 
-### Phase 1: 개발 방식 선택
+### Phase 1: 개발 방식 선택 (`ulw` 활용)
 
 AskUserQuestion으로 개발 방식 선택:
 
@@ -73,7 +73,7 @@ AskUserQuestion으로 개발 방식 선택:
   - 장점: 세밀한 제어, 확장성, CI/CD 통합
   - 적합: 복잡한 로직, 기존 시스템 통합, 독립 배포가 필요한 경우
 
-### Phase 2-A: Dify 런타임 활용 (Option A 선택 시)
+### Phase 2-A: Dify 런타임 활용 (Option A 선택 시) (`ulw` 활용)
 
 #### Step 1: Import
 - `python gateway/tools/dify_cli.py import --yaml-file {output_dir}/{app-name}.dsl.yaml`
@@ -203,8 +203,10 @@ AskUserQuestion으로 개발 방식 선택:
 
 ## 스킬 부스팅
 
-| 단계 | 추천 스킬 | 효과 |
+| 단계 | OMC 스킬 | 효과 |
 |------|----------|------|
+| Phase 1: 개발 방식 선택 | `ulw` 매직 키워드 | 사용자 입력 수집의 완료 보장 |
+| Phase 2-A: Dify 런타임 활용 | `ulw` 매직 키워드 | Import → Publish → API 테스트의 완료 보장 |
 | Phase 2-B: 코드 기반 구현 | `/oh-my-claudecode:ralph` | 완료 보장 실행 워크플로우 |
 | Phase 3: 빌드 오류 수정 | `/oh-my-claudecode:build-fix` | 최소 수정 원칙 |
 | Phase 4: QA/검증 | `/oh-my-claudecode:ultraqa` | QA 순환 워크플로우 |

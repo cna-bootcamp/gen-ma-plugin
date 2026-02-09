@@ -55,7 +55,7 @@ DSL 파일 존재 확인.
 - 있음 → Phase 1 진행
 - 없음 → dsl-generate 스킬로 위임
 
-### Phase 1: 프로토타이핑 실행 → Agent: prototype-runner
+### Phase 1: 프로토타이핑 실행 → Agent: prototype-runner (`ulw` 활용)
 
 - **TASK**: DSL을 Dify에 import → publish → run → export 수행. 에러 시 DSL 수정 → 재검증 → 재시도 루프 자동 실행
 - **EXPECTED OUTCOME**: 검증 완료된 DSL 파일 (export된 최종 버전)
@@ -106,4 +106,8 @@ Dify 앱 존재 시 publish/run 단계부터 재개 가능.
 
 ## 스킬 부스팅
 
-이 스킬은 오케스트레이션 스킬을 활용하지 않음 (단일 에이전트 위임, 반복 루프는 에이전트 자체 워크플로우로 충분).
+이 스킬은 다음 OMC 스킬을 활용하여 검증된 워크플로우를 적용함:
+
+| 단계 | OMC 스킬 | 목적 |
+|------|----------|------|
+| Phase 1 | `ulw` 매직 키워드 | 프로토타이핑 실행 + 에러 수정 루프의 완료 보장 |

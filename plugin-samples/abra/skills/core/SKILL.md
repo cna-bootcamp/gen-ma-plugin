@@ -50,15 +50,36 @@ user-invocable: false
 
 scenario → dsl-generate → prototype → dev-plan → develop 스킬을 순차 호출함.
 
+**Step 3-0: 프로젝트 디렉토리 설정**
+
+AskUserQuestion으로 프로젝트 루트 디렉토리를 설정:
+
+1. **서비스 목적 기반 디렉토리명 추천**
+   - 사용자가 입력한 서비스 목적에서 핵심 키워드를 추출하여 프로젝트 디렉토리명 추천
+   - 예: "고객 문의 자동 응답" → `customer-inquiry-agent`
+   - 예: "사내 문서 검색 챗봇" → `doc-search-chatbot`
+   - 추천명은 영문 kebab-case 형식
+
+2. **프로젝트 루트 경로 확인**
+   - 질문: "프로젝트를 생성할 경로를 선택해 주세요"
+   - 옵션:
+     - "현재 디렉토리 하위 (`./{추천명}/`)" (권장)
+     - "직접 입력"
+
+3. **디렉토리 생성**
+   - 지정된 경로에 프로젝트 디렉토리 생성
+   - `output/` 서브디렉토리 생성 (산출물 저장용)
+   - 이후 모든 STEP의 `{output_dir}`는 이 프로젝트 디렉토리의 `output/`을 가리킴
+
 **Step 3-1: 시나리오 생성 → Skill: scenario**
 - **INTENT**: 비즈니스 요구사항을 구조화된 시나리오 문서로 변환
-- **ARGS**: 서비스 목적 (사용자 입력)
-- **RETURN**: 선택된 시나리오 문서 (`output/scenario.md`)
+- **ARGS**: 서비스 목적 (사용자 입력), 프로젝트 루트 디렉토리 (Step 3-0에서 설정)
+- **RETURN**: 선택된 시나리오 문서 (`{project_root}/output/scenario.md`)
 
 **Step 3-2: DSL 생성 → Skill: dsl-generate**
 - **INTENT**: 시나리오 기반 Dify Workflow DSL 자동생성
 - **ARGS**: Step 3-1의 시나리오 문서
-- **RETURN**: 검증된 DSL 파일 (`output/{app-name}.dsl.yaml`)
+- **RETURN**: 검증된 DSL 파일 (`{project_root}/output/{app-name}.dsl.yaml`)
 
 **Step 3-3: 프로토타이핑 → Skill: prototype**
 - **INTENT**: DSL을 Dify에 배포하여 프로토타이핑 검증
@@ -68,7 +89,7 @@ scenario → dsl-generate → prototype → dev-plan → develop 스킬을 순�
 **Step 3-4: 개발계획서 작성 → Skill: dev-plan**
 - **INTENT**: 검증된 DSL과 시나리오 기반 개발계획서 작성
 - **ARGS**: Step 3-3의 검증된 DSL + Step 3-1의 시나리오
-- **RETURN**: 개발계획서 문서 (`output/dev-plan.md`)
+- **RETURN**: 개발계획서 문서 (`{project_root}/output/dev-plan.md`)
 
 **Step 3-5: AI Agent 개발 → Skill: develop**
 - **INTENT**: 개발계획서에 따라 AI Agent 구현

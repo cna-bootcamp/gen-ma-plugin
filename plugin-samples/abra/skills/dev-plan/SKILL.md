@@ -56,7 +56,7 @@ user-invocable: true
 - DSL 파일 없음 → `dsl-generate` 스킬로 위임
 - 시나리오 파일 없음 → `scenario` 스킬로 위임
 
-### Phase 1: 비기능요구사항 수집
+### Phase 1: 비기능요구사항 수집 (`ulw` 활용)
 
 AskUserQuestion으로 비기능요구사항을 수집함.
 
@@ -123,7 +123,10 @@ AskUserQuestion으로 비기능요구사항을 수집함.
 이 Phase는 `/oh-my-claudecode:ralplan`을 활용하여 수행함.
 ralplan은 Planner + Architect + Critic 에이전트가 반복 합의하여 최적의 계획을 도출하는 검증된 워크플로우를 제공함.
 
-### Phase 3: 리뷰 포인트 체크 및 결과 보고
+### Phase 3: 리뷰 포인트 체크 및 결과 보고 (`/oh-my-claudecode:review` 활용)
+
+이 Phase는 `/oh-my-claudecode:review`를 활용하여 수행함.
+review는 Critic 에이전트가 계획서의 완성도와 일관성을 체계적으로 검토하는 검증된 워크플로우를 제공함.
 
 개발계획서를 사용자에게 보고하고, 다음 리뷰 포인트를 확인함.
 
@@ -203,6 +206,9 @@ grep -E "^## [0-9]\. (개요|기술스택|아키텍처|모듈 설계|프롬프�
 
 | 단계 | OMC 스킬 | 목적 |
 |------|----------|------|
+| Phase 1 | `ulw` 매직 키워드 | 비기능요구사항 수집의 완료 보장 |
 | Phase 2 | `/oh-my-claudecode:ralplan` | 반복 합의 기반 계획 수립 (Planner + Architect + Critic) |
+| Phase 3 | `/oh-my-claudecode:review` | 계획서 완성도 및 일관성 체계적 검토 (Critic) |
 
-ralplan의 반복 합의 메커니즘을 통해 개발계획서의 품질과 일관성을 보장함.
+ralplan의 반복 합의 메커니즘을 통해 개발계획서의 품질과 일관성을 보장하고,
+review를 통해 최종 리뷰 포인트를 체계적으로 검증함.

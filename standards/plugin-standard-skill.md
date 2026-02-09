@@ -27,7 +27,7 @@ Gateway 도구를 직접 사용(직결형)하는 Controller+UseCase 레이어의
 | `name` | ✅ | 스킬 ID (kebab-case) | `my-skill` |
 | `description` | ✅ | 한 줄 설명 | `코드 품질 분석 스킬` |
 | `user-invocable` | 선택 | 사용자 직접 호출 가능 여부 (기본값: true) | `true` |
-| `disable-model-invocation` | 선택 | 런타임 자동 호출 차단 (Setup 스킬용) | `true` |
+| `disable-model-invocation` | 선택 | 런타임 자동 호출 차단. **주의: `true` 설정 시 스킬 로드 자체가 안 되므로 사용 금지** | `false` |
 | `allowed-tools` | 선택 | 허용 도구 목록 | `["Read", "Task"]` |
 | `model` | 선택 | 기본 모델 | `sonnet` |
 | `context` | 선택 | 컨텍스트 힌트 | `["code-quality"]` |
@@ -337,18 +337,20 @@ Task(
 | 기능 구현 | `/oh-my-claudecode:ralph` | 완료 보장 실행 워크플로우 | **필수** |
 | 빌드 오류 수정 | `/oh-my-claudecode:build-fix` | 최소 수정 원칙 | **필수** |
 | QA/검증 | `/oh-my-claudecode:ultraqa` | QA 순환 워크플로우 | **필수** |
-| 계획 검토 | `/oh-my-claudecode:review` | 비평 전문 워크플로우 | 선택 |
-| 심층 분석/디버깅 | `/oh-my-claudecode:analyze` | 체계적 분석 절차 | 선택 |
-| 코드베이스 탐색 | `/oh-my-claudecode:deepsearch` | 심층 검색 방법론 | 선택 |
-| 코드 리뷰 | `/oh-my-claudecode:code-review` | 종합 리뷰 체크리스트 | 선택 |
-| 보안 검토 | `/oh-my-claudecode:security-review` | 보안 감사 워크플로우 | 선택 |
-| 리서치/조사 | `/oh-my-claudecode:research` | 병렬 조사 방법론 | 선택 |
+| 계획 검토 | `/oh-my-claudecode:review` | 비평 전문 워크플로우 | **필수** |
+| 심층 분석/디버깅 | `/oh-my-claudecode:analyze` | 체계적 분석 절차 | **필수** |
+| 코드베이스 탐색 | `/oh-my-claudecode:deepsearch` | 심층 검색 방법론 | **필수** |
+| 코드 리뷰 | `/oh-my-claudecode:code-review` | 종합 리뷰 체크리스트 | **필수** |
+| 보안 검토 | `/oh-my-claudecode:security-review` | 보안 감사 워크플로우 | **필수** |
+| 리서치/조사 | `/oh-my-claudecode:research` | 병렬 조사 방법론 | **필수** |
+| *(위 항목에 해당 없음)* | `ulw` 매직 키워드 | 범용 병렬 실행 + 완료 보장 | **필수** |
 
 > **적용 위치**: 스킬의 워크플로우 섹션에 명시.
 > 예: `### Phase 2: 계획 수립` → "이 단계는 `/oh-my-claudecode:ralplan`을 활용하여 수행"
 >
-> **필수 vs 선택**: 개발 계획·기능 구현·빌드 오류 수정·QA/검증은 반드시 오케스트레이션 스킬을 활용.
-> 그 외 단계는 에이전트 자체 워크플로우(AGENT.md)가 충분한지 판단하여 상황에 따라 적용.
+> **전면 필수**: 모든 워크플로우 단계는 반드시 대응하는 오케스트레이션 스킬을 활용함.
+> 위 테이블에 매핑되는 단계가 없을 경우 `ulw` 매직 키워드를 폴백으로 사용하여
+> 병렬 실행 + 완료 보장 방법론을 적용함.
 
 [Top](#skill-표준)
 
@@ -364,7 +366,7 @@ Task(
 | 2 | `[{스킬명} 활성화]` | 선택 | 스킬 시작 시 화면에 출력하는 메시지 |
 | 3 | `## 목표` | ✅ | 이 스킬이 달성하려는 핵심 목적 |
 | 4 | `## 활성화 조건` | 권장 | 이 스킬이 활성화되는 조건 · 상황 (자기 선언) |
-| 5 | `## 워크플로우` | 권장 | 워크플로우 / 단계별 접근법. 위임 시 `→ Agent:` 또는 `→ Skill:` 마커 사용. <br>위임형 스킬은 필수 단계에 오케스트레이션 스킬 활용 명시 |
+| 5 | `## 워크플로우` | 권장 | 워크플로우 / 단계별 접근법. 위임 시 `→ Agent:` 또는 `→ Skill:` 마커 사용. <br>위임형 스킬은 모든 단계에 오케스트레이션 스킬 활용 필수 명시 (매핑 없으면 `ulw` 폴백) |
 
 ### 섹션명 통일 규칙
 
@@ -500,12 +502,12 @@ Setup 스킬은 플러그인 설치 시 **프로젝트 루트**의 `CLAUDE.md`�
 name: setup
 description: 플러그인 초기 설정
 user-invocable: true
-disable-model-invocation: true    # 사용자 명시적 호출만 허용
 ---
 ```
 
-setup 스킬은 `disable-model-invocation: true`로 설정하여 런타임이 자동 호출하지 않도록 해야 함.
-사용자가 `/my-plugin:setup`으로 명시적으로 호출할 때만 실행됨.
+> **주의**: `disable-model-invocation: true`를 설정하면 런타임이 스킬을 아예 로드하지 않아
+> 사용자가 `/my-plugin:setup`으로 호출해도 스킬을 찾을 수 없음.
+> Setup 스킬은 `user-invocable: true`만 설정하고 `disable-model-invocation`은 사용하지 않을 것.
 
 [Top](#skill-표준)
 
@@ -534,7 +536,8 @@ setup 스킬은 `disable-model-invocation: true`로 설정하여 런타임이 �
 #### 워크플로우 작성 패턴
 
 Planning 스킬은 `## 워크플로우` 안에 `### Step N: {Name}` 패턴으로 번호 기반 순차 워크플로우를 정의함.
-각 Step에서 오케스트레이션 스킬 활용이 필요하면 명시함 (예: "이 단계는 `/oh-my-claudecode:ralplan`을 활용하여 수행").
+모든 Step에 대응하는 오케스트레이션 스킬을 필수 명시함 (예: "이 단계는 `/oh-my-claudecode:ralplan`을 활용하여 수행").
+대응하는 스킬이 없는 Step은 `ulw` 매직 키워드를 폴백으로 명시함.
 
 #### 계획 모드 (Planning Mode)
 
@@ -589,7 +592,8 @@ Planning 스킬은 요구사항의 명확도에 따라 세 가지 모드 중 하
 
 Orchestrator 스킬은 `## 워크플로우` 안에 `### Phase N: {Name}` 패턴으로 순차/병렬 단계를 정의함.
 각 Phase는 Goal → Agents → Output 구조를 따름.
-각 Phase에서 오케스트레이션 스킬 활용이 필요하면 명시함 (예: "이 Phase는 `/oh-my-claudecode:tdd`를 활용하여 수행").
+모든 Phase에 대응하는 오케스트레이션 스킬을 필수 명시함 (예: "이 Phase는 `/oh-my-claudecode:ralph`를 활용하여 수행").
+대응하는 스킬이 없는 Phase는 `ulw` 매직 키워드를 폴백으로 명시함.
 
 #### 특징
 
@@ -816,7 +820,7 @@ description: 워크플로우 조율 및 병렬 실행 관리
 | 4 | 워크플로우에서 `→ Agent:` 마커 사용 시 5항목, `→ Skill:` 마커 사용 시 3항목 포함 | 위임 품질 보장 |
 | 5 | 라우팅/분기 로직은 상세히, 에이전트 위임은 간결하게 | 프롬프트 깊이 차등화 |
 | 6 | 섹션명 한글 표준명 사용 (목표, 활성화 조건, 워크플로우) | 스킬 간 일관성 |
-| 7 | 위임형 스킬: 필수 단계(계획·구현·빌드 수정·QA)의 워크플로우에서 오케스트레이션 스킬 활용 명시 | 검증된 방법론 주입 |
+| 7 | 위임형 스킬: 모든 워크플로우 단계에서 오케스트레이션 스킬 활용 필수 명시. 매핑 스킬이 없으면 `ulw` 폴백 | 검증된 방법론 주입 |
 | 8 | 위임형 스킬: 프롬프트 구성 순서를 공통 정적 → 에이전트별 정적 → 동적 순서로 배치 | prefix 캐시 최적화 |
 
 [Top](#skill-표준)
@@ -850,13 +854,13 @@ description: 워크플로우 조율 및 병렬 실행 관리
 - [ ] 위임 프롬프트에 HOW(방법) 없이 WHAT(목표)+제약만 기술했는가
 - [ ] 라우팅 로직은 상세하게, 위임은 간결하게 작성했는가
 - [ ] Core 스킬: 워크플로우가 라우팅 전용인가 (실행 Phase 없음)
-- [ ] Setup 스킬: `disable-model-invocation: true` 설정했는가
+- [ ] Setup 스킬: `disable-model-invocation: true`를 사용하지 않았는가 (사용 시 스킬 로드 불가)
 - [ ] 섹션명이 한글 표준명을 사용하는가 (목표, 활성화 조건, 워크플로우)
 - [ ] commands/ 진입점 파일 작성 (슬래시 명령 노출 시)
 - [ ] 위임형 스킬(Planning, Orchestrator): 에이전트 호출 규칙 섹션 포함
 - [ ] Orchestrator 스킬: 완료 조건, 검증 프로토콜, 상태 정리, 취소/재개 섹션 포함
-- [ ] 위임형 스킬: 필수 단계(계획·구현·빌드 수정·QA)의 워크플로우에 오케스트레이션 스킬 활용이 명시되었는가
-- [ ] 위임형 스킬: 선택 단계에 대해 오케스트레이션 스킬 활용 여부를 판단 근거와 함께 결정했는가
+- [ ] 위임형 스킬: 모든 워크플로우 단계에 오케스트레이션 스킬 활용이 명시되었는가
+- [ ] 위임형 스킬: 매핑 스킬이 없는 단계에 `ulw` 폴백이 적용되었는가
 - [ ] 위임형 스킬: 프롬프트 구성 순서가 공통 정적 → 에이전트별 정적 → 동적 순서인가
 
 [Top](#skill-표준)
