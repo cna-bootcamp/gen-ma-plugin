@@ -227,7 +227,7 @@ AI가 작업별로 로드할 문서를 정의함. 이미 로드한 문서는 재
 
 | # | 규칙 | 근거 |
 |---|------|------|
-| 1 | 모든 플러그인은 `.claude-plugin/plugin.json` 포함 | 런타임 인식 진입점 |
+| 1 | 모든 플러그인은 `.claude-plugin/plugin.json`과 `.claude-plugin/marketplace.json` 포함 | 런타임 인식 진입점 및 배포 메타데이터 |
 | 2 | 모든 에이전트는 AGENT.md(프롬프트) + agentcard.yaml(메타데이터) 쌍으로 구성 | 프롬프트/메타데이터 분리 |
 | 3 | tier는 HEAVY / HIGH / MEDIUM / LOW 중 하나만 사용 | 런타임 매핑 표준 |
 | 4 | 위임형 스킬(Core, Planning, Orchestrator)은 라우팅+오케스트레이션만 수행, 작업 실행은 에이전트에 위임. 직결형 스킬(Setup, Utility)은 Gateway 직접 사용 허용 | 관심사 분리 + 실용성 |
@@ -235,7 +235,7 @@ AI가 작업별로 로드할 문서를 정의함. 이미 로드한 문서는 재
 | 6 | 추상 선언(tools.yaml)과 구체 매핑(runtime-mapping.yaml) 분리 | Dependency Inversion |
 | 7 | 스킬 네임스페이스는 `{plugin-name}:{skill-name}` 형식 | 충돌 방지 |
 | 8 | `/{plugin-name}:{skill-name}` 형식의 진입점 위해 커맨드 생성 | 슬래시 명령 노출 |
-| 9 | setup 스킬 반드시 포함. 설치 시 프로젝트 루트 `CLAUDE.md`에 라우팅 테이블 작성 (기존 내용 유지, 끝에 추가) | 설치/라우팅 등록 |
+| 9 | setup 스킬과 core 스킬 반드시 포함. setup은 설치 시 프로젝트 루트 `CLAUDE.md`에 core 스킬의 활성화 조건을 라우팅 테이블로 작성 (기존 내용 유지, 끝에 추가). 플러그인당 core 스킬 1개 | 설치/라우팅 등록 |
 | 10 | AGENT.md에 도구 명세 금지 — tools.yaml에 분리 | 프롬프트/도구 분리 |
 
 ### MUST NOT 규칙

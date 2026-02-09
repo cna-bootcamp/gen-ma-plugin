@@ -31,6 +31,7 @@
 | 2차 분류 | 가이드명 | 설명 | 상세 |
 |---------|---------|------|------|
 | dify | dify-workflow-dsl-guide | Dify Workflow DSL 작성 가이드 (구조, 노드 타입, 변수 참조 등) | [상세](guides/dify/dify-workflow-dsl-guide.md) |
+| plugin | plugin-dev-guide | DMAP 플러그인 개발 가이드 (요구사항 정의서, 개발 워크플로우) | [상세](guides/plugin/plugin-dev-guide.md) |
 
 [Top](#리소스-마켓플레이스)
 
