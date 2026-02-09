@@ -1,0 +1,17 @@
+tools:
+  - name: file_read
+    description: "파일 내용 읽기"
+    input: { path: "string" }
+    output: { content: "string" }
+  - name: file_write
+    description: "파일 내용 쓰기"
+    input: { path: "string", content: "string" }
+    output: { success: "boolean" }
+  - name: doc_search
+    description: "외부 라이브러리 문서 검색"
+    input: { library: "string", query: "string" }
+    output: { docs: "string" }
+  - name: code_search
+    description: "코드베이스 검색"
+    input: { query: "string" }
+    output: { results: "array" }

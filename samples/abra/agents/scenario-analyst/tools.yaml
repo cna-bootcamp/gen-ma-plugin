@@ -1,0 +1,9 @@
+tools:
+  - name: file_read
+    description: "파일 내용 읽기"
+    input: { path: "string" }
+    output: { content: "string" }
+  - name: file_write
+    description: "파일 내용 쓰기"
+    input: { path: "string", content: "string" }
+    output: { success: "boolean" }

@@ -1,0 +1,6 @@
+{
+  "name": "abra",
+  "version": "1.0.0",
+  "description": "자연어 한마디로 AI Agent를 자동 생성하는 DMAP 플러그인",
+  "main": "skills"
+}
