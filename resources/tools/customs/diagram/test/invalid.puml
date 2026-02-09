@@ -1,0 +1,5 @@
+@startuml
+participant Alice
+Alice ->
+invalid syntax here !!!
+@enduml

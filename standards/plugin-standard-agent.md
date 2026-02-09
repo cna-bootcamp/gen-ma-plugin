@@ -4,6 +4,7 @@
 > - agentcard.yaml의 forbidden_actions 매핑이 필요하면 → `standards/plugin-standard-gateway.md`
 > - 에이전트를 호출하는 스킬을 함께 작성해야 하면 → `standards/plugin-standard-skill.md`
 > - tier의 실제 모델 변환이 필요하면 → `standards/plugin-standard-gateway.md`의 "runtime-mapping.yaml" 섹션
+> - 리소스(도구·가이드·템플릿·샘플)가 필요하면 → `resources/plugin-resources.md`
 > - 전체 아키텍처 확인이 필요하면 → `standards/plugin-standard.md`
 
 ---

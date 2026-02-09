@@ -4,6 +4,7 @@
 > - 에이전트를 함께 작성해야 하면 → `standards/plugin-standard-agent.md`
 > - 에이전트 이름 규칙(표준 식별자, FQN)이 필요하면 → `standards/plugin-standard-agent.md`의 "에이전트 이름 규칙"
 > - Gateway 매핑이 필요하면 → `standards/plugin-standard-gateway.md`
+> - 리소스(도구·가이드·템플릿·샘플)가 필요하면 → `resources/plugin-resources.md`
 > - 전체 아키텍처 확인이 필요하면 → `standards/plugin-standard.md`
 
 ---
@@ -449,6 +450,42 @@ Agent 위임 없이 Gateway 도구(Bash, Write 등)를 직접 사용.
 
 Setup 스킬은 `## 워크플로우` 안에 `### Step N: {Name}` 패턴으로 번호 기반 순차 워크플로우를 정의함.
 사용자가 진행 상황을 파악하기 쉽도록 단계별 번호를 부여함.
+
+#### CLAUDE.md 라우팅 테이블 등록 (필수)
+
+Setup 스킬은 플러그인 설치 시 **프로젝트 루트**의 `CLAUDE.md`에 라우팅 테이블을 작성해야 함.
+이 라우팅 테이블은 런타임이 세션 시작 시 항상 읽어 사용자 요청을 플러그인 스킬에 매칭하는 데 사용됨.
+
+**작성 위치**: 프로젝트 루트 `CLAUDE.md` (예: `./CLAUDE.md`)
+
+**작성 규칙**:
+- 기존 `CLAUDE.md`가 있으면 기존 내용을 유지하고 **끝에 추가** (덮어쓰기 금지)
+- 기존 `CLAUDE.md`가 없으면 새로 생성
+- 플러그인 섹션은 `# {plugin-name} 플러그인` 헤딩으로 구분
+- 라우팅 테이블에 사용자 의도 → 스킬 매핑 포함
+- 슬래시 명령 목록 포함
+
+**작성 내용 예시**:
+
+```markdown
+# abra 플러그인
+
+## 사용 가능한 명령
+| 명령 | 설명 |
+|------|------|
+| `/abra:scenario` | 요구사항 시나리오 생성 |
+| `/abra:dsl-generate` | Dify DSL 자동 생성 |
+| `/abra:prototype` | 프로토타이핑 자동화 |
+
+## 자동 라우팅
+다음과 같은 요청은 자동으로 abra 플러그인이 처리합니다:
+- "시나리오 만들어줘" → /abra:scenario
+- "DSL 생성해줘" → /abra:dsl-generate
+- "프로토타이핑해줘" → /abra:prototype
+```
+
+> **런타임별 상주 파일**: Claude Code → `CLAUDE.md`, Codex CLI → `AGENTS.md` 등
+> 런타임마다 파일명이 다르므로, Setup 스킬은 대상 런타임에 맞는 파일에 작성해야 함.
 
 #### 특징
 

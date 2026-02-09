@@ -1,0 +1,10 @@
+@startuml
+actor User
+participant "Web App" as WA
+database "Database" as DB
+
+User -> WA : Request
+WA -> DB : Query
+DB --> WA : Result
+WA --> User : Response
+@enduml

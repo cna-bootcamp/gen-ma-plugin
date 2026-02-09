@@ -214,7 +214,8 @@ AI가 작업별로 로드할 문서를 정의함. 이미 로드한 문서는 재
 | 스킬 생성·수정 | `standards/plugin-standard-skill.md` | ~8,000 |
 | 에이전트 생성·수정 | `standards/plugin-standard-agent.md` | ~8,000 |
 | Gateway·도구 매핑 | `standards/plugin-standard-gateway.md` | ~6,000 |
-| 전체 플러그인 신규 생성 | 위 문서 전체를 순차 로드 | ~22,000 |
+| 리소스(도구·가이드·템플릿·샘플) | `resources/plugin-resources.md` | ~6,000 |
+| 전체 플러그인 신규 생성 | 위 문서 전체를 순차 로드 | ~28,000 |
 
 [Top](#dmap-빌더-표준)
 
@@ -234,7 +235,7 @@ AI가 작업별로 로드할 문서를 정의함. 이미 로드한 문서는 재
 | 6 | 추상 선언(tools.yaml)과 구체 매핑(runtime-mapping.yaml) 분리 | Dependency Inversion |
 | 7 | 스킬 네임스페이스는 `{plugin-name}:{skill-name}` 형식 | 충돌 방지 |
 | 8 | `/{plugin-name}:{skill-name}` 형식의 진입점 위해 커맨드 생성 | 슬래시 명령 노출 |
-| 9 | setup 스킬 반드시 포함 | 설치/라우팅 등록 |
+| 9 | setup 스킬 반드시 포함. 설치 시 프로젝트 루트 `CLAUDE.md`에 라우팅 테이블 작성 (기존 내용 유지, 끝에 추가) | 설치/라우팅 등록 |
 | 10 | AGENT.md에 도구 명세 금지 — tools.yaml에 분리 | 프롬프트/도구 분리 |
 
 ### MUST NOT 규칙
@@ -561,8 +562,8 @@ claude plugin validate .
 | **요구사항** | 필수 MCP/LSP 서버, 런타임 버전 등 |
 | **라이선스** | 라이선스 정보 |
 
-> **템플릿**: README.md 작성 시 `templates/README-plugin-template.md`를 참고할 것.
-> **예제**: 실제 작성 예시는 `sample/README.md`를 참고할 것.
+> **템플릿**: README.md 작성 시 `resources/templates/plugin/README-plugin-template.md`를 참고할 것.
+> **예제**: 실제 작성 예시는 `resources/samples/plugin/README.md`를 참고할 것.
 
 [Top](#dmap-빌더-표준)
 
