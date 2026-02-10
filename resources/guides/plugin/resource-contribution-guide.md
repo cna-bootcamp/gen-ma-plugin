@@ -194,7 +194,7 @@ resources/samples/{2차분류}/{sample-name}
 |---------|------|----------|------|
 | 커스텀 앱 | Python/Node.js 등으로 구현한 프로그램 | `customs/{분류}/` | generate_image |
 | 커스텀 CLI | 셸 스크립트로 구현한 도구 | `customs/{분류}/` | check-mermaid |
-| MCP 서버 | Model Context Protocol 기반 도구 (외부 패키지 또는 커스텀 구현) | `mcp/{분류}/` | context7 |
+| MCP 서버 | Model Context Protocol 기반 도구 (외부 패키지 또는 커스텀 구현) | `mcp/{분류}/` (설정 또는 소스) | context7 |
 | LSP 서버 | Language Server Protocol 기반 코드 분석 | 불필요 (외부) | python-lsp-server |
 
 > **LSP 서버 참고:** LSP 서버는 `install.yaml`의 `lsp_servers` 항목에서 직접 선언하며,
@@ -468,8 +468,10 @@ MCP 서버는 외부 npm 패키지 또는 커스텀 구현으로 제공됨.
 
 #### 단계 1. 소스 배치
 
-- **외부 패키지:** 소스 배치 불필요. `claude mcp add-json` 명령으로 설치.
-- **커스텀 구현:** 소스 파일을 `resources/tools/mcp/{분류}/`에 배치.
+`resources/tools/mcp/{분류}/`에 배치:
+
+- **외부 패키지:** 설치 설정 파일(예: `install-config.json`)을 배치하여 플러그인에서 참조 가능하도록 등록.
+- **커스텀 구현:** 소스 파일을 배치.
 
 #### 단계 2. 툴 가이드 작성
 
@@ -573,7 +575,7 @@ claude mcp list -s user
 
 | 항목 | MCP 서버 | 커스텀 앱/CLI |
 |------|---------|-------------|
-| 소스 배치 | 외부 패키지는 불필요, 커스텀 구현은 `mcp/{분류}/` | `customs/{분류}/` 아래 배치 |
+| 소스 배치 | `mcp/{분류}/` (외부: 설치 설정, 커스텀: 소스) | `customs/{분류}/` 아래 배치 |
 | 기본 정보 | 공식 사이트, 제공자 포함 | 소스 경로 포함 |
 | 설치 명령 | `claude mcp add-json` | pip/npm install 또는 불필요 |
 | 제공 도구 섹션 | 있음 (MCP 도구 목록) | 없음 |
