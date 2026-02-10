@@ -127,7 +127,7 @@ description: 에이전트 목표 설명      # 목표 요약 (한 줄)
 | 워크플로우 | ✅ | 사고 절차 — 순서대로 수행할 단계 |
 | 참조 | ✅ | `agentcard.yaml`과 `tools.yaml` 참조 지시 |
 | 출력 형식 | 권장 | 결과물의 구조와 형식 |
-| 검증 | 권장 | 완료 전 자체 점검 항목 |
+| 검증 | ✅ | 완료 전 자체 점검 항목 |
 | 예시 (Few-shot) | 선택 | 입력/출력 예시로 기대 품질 시연 |
 
 ### 작성 원칙
@@ -618,5 +618,6 @@ agents/
 - [ ] AGENT.md는 WHY+HOW만, agentcard.yaml은 WHO+WHAT+WHEN만 기술 (경계 원칙 준수)
 - [ ] AGENT.md와 agentcard.yaml 간 동일 정보 중복 없음
 - [ ] tools.yaml이 있는 경우: 선언 도구가 Gateway의 runtime-mapping.yaml에 매핑됨
+- [ ] AGENT.md에 `## 검증` 섹션이 포함되어 있는가
 
 [Top](#agent-표준)
