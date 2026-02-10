@@ -51,6 +51,7 @@ Thumbs.db
 tmp/
 temp/
 nul
+~$*
 *.sqlite
 develop-agent/examples/graphrag/cache/
 
