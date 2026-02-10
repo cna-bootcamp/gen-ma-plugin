@@ -36,6 +36,7 @@ user-invocable: true
 | GitHub 계정 가이드 | `resources/guides/github/github-account-setup.md` | 계정 생성 안내 |
 | GitHub 토큰 가이드 | `resources/guides/github/github-token-guide.md` | PAT 생성 안내 |
 | GitHub Organization 가이드 | `resources/guides/github/github-organization-guide.md` | Organization 생성 안내 |
+| create_repo 도구 | `resources/tools/customs/git/create_repo.py` | GitHub 저장소 생성 및 Push |
 
 [Top](#publish)
 
@@ -46,7 +47,7 @@ user-invocable: true
 | 단계 | 부스팅 스킬 | 용도 |
 |------|------------|------|
 | Step 1 (인증 정보 수집) | `/oh-my-claudecode:security-review` | 토큰 저장 및 .gitignore 처리 보안 검증 |
-| Step 4~5 (Push + 완료) | `/oh-my-claudecode:ultraqa` | 배포 결과 검증 (저장소 접근, README 확인) |
+| Step 2~3 (Push + 완료) | `/oh-my-claudecode:ultraqa` | 배포 결과 검증 (저장소 접근, README 확인) |
 
 [Top](#publish)
 
@@ -88,56 +89,33 @@ AskUserQuestion 도구로 다음 정보를 순차적으로 문의:
      ```
    - `.gitignore`에 `.dmap/secrets/` 패턴이 포함되어 있는지 확인, 없으면 추가
 
-### Step 2: gh CLI 설치 및 인증
+### Step 2: 원격 저장소 생성 및 Push
 
-gh CLI 설치 여부를 확인하고 필요 시 설치함.
-
-1. `gh --version` 명령으로 설치 확인
-2. 미설치 시:
-   - Windows: `winget install --id GitHub.cli` 실행
-   - macOS: `brew install gh` 실행
-   - Linux: 공식 설치 스크립트 실행
-3. `gh auth login --with-token` 명령으로 토큰 인증
-   - Step 1에서 저장된 토큰 사용
-
-### Step 3: 원격 저장소 생성
-
-GitHub에 원격 저장소를 생성함.
+`create_repo.py` 도구를 사용하여 GitHub 저장소 생성 + 로컬 Git 초기화 + Push를 한번에 수행함.
+`gh` CLI 설치가 불요하며, Python 표준 라이브러리만 사용.
 
 1. 저장소명 결정: 플러그인명 사용 (plugin.json의 name 필드)
-2. 저장소 존재 여부 확인: `gh repo view {owner}/{repo-name}` 실행
-   - 이미 존재: Step 4로 진행 (멱등성 보장)
-   - 미존재: 신규 생성
-3. 저장소 생성:
-   ```
-   gh repo create {owner}/{repo-name} --public --description "{plugin description}"
-   ```
-   - Organization 사용 시: `gh repo create {org}/{repo-name} ...`
-   - 개인 계정 시: `gh repo create {username}/{repo-name} ...`
-
-### Step 4: 로컬 Git 초기화 및 Push
-
-플러그인 디렉토리를 Git 저장소로 초기화하고 원격에 Push함.
-
-1. 플러그인 디렉토리로 이동
 2. `.gitignore` 존재 확인 (develop-plugin에서 이미 생성됨)
-3. Git 초기화 및 Push:
+3. `create_repo.py` 실행:
    ```
-   git init
-   git add .
-   git commit -m "Initial commit: {plugin-name} DMAP plugin"
-   git branch -M main
-   git remote add origin https://github.com/{owner}/{repo-name}.git
-   git push -u origin main
+   python resources/tools/customs/git/create_repo.py \
+     --name {repo-name} \
+     --desc "{plugin description}" \
+     --token {PAT} \
+     --dir {plugin-directory}
    ```
-4. 이미 git 저장소인 경우:
+   - Organization 사용 시: `--org {org}` 옵션 추가
+4. 이미 git 저장소이고 원격이 설정된 경우 (업데이트 배포):
    ```
    git add .
    git commit -m "Update: {plugin-name} DMAP plugin"
    git push
    ```
 
-### Step 5: 완료 메시지 및 플러그인 등록 안내
+> `create_repo.py`가 수행하는 작업: 저장소 존재 여부 확인 → 원격 저장소 생성 →
+> `git init` → `git remote add origin` → 초기 커밋 → `git push -u origin main`
+
+### Step 3: 완료 메시지 및 플러그인 등록 안내
 
 Git Push 완료 후 다음 내용을 출력함.
 
@@ -192,8 +170,10 @@ claude plugin list
 
 | 문제 | 해결 방법 |
 |------|----------|
-| gh CLI 설치 실패 | 수동 설치 안내: https://cli.github.com/ |
+| Python 미설치 | Python 3.7+ 설치 안내: https://python.org/ |
+| Git 미설치 | Git 설치 안내: https://git-scm.com/ |
 | 인증 실패 | 토큰 권한(repo) 확인, 토큰 재생성 안내 |
+| 저장소 이미 존재 | 다른 이름 사용 또는 기존 저장소 활용 (업데이트 배포) |
 | 저장소 생성 실패 | Organization 권한 확인, 이름 중복 확인 |
 | Push 실패 | 원격 저장소 URL 확인, 인증 토큰 확인 |
 
@@ -230,7 +210,7 @@ claude plugin list
 
 - [ ] GitHub 인증 정보 수집 단계가 포함되어 있는가
 - [ ] `.dmap/secrets/` 저장 및 `.gitignore` 확인 로직이 있는가
-- [ ] gh CLI 설치 확인 로직이 있는가
+- [ ] `create_repo.py` 도구를 사용하여 저장소 생성 및 Push를 수행하는가
 - [ ] 저장소 존재 여부 사전 확인(멱등성)이 있는가
 - [ ] 완료 메시지에 설치 명령어가 포함되어 있는가
 - [ ] 문제 해결 가이드가 포함되어 있는가
