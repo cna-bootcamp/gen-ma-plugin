@@ -59,11 +59,13 @@ resources/
 │   └── plugin/
 └── tools/                       # 도구
     ├── *.md                     # 툴 가이드 문서 (도구별 1개)
-    └── customs/                 # 커스텀 도구 소스
-        ├── .env                 # 공통 환경 변수
-        ├── dify-cli/            # 2차 분류: dify-cli
-        ├── diagram/             # 2차 분류: diagram
-        └── general/             # 2차 분류: general
+    ├── customs/                 # 커스텀 앱/CLI 소스
+    │   ├── .env                 # 공통 환경 변수
+    │   ├── dify-cli/            # 2차 분류: dify-cli
+    │   ├── diagram/             # 2차 분류: diagram
+    │   └── general/             # 2차 분류: general
+    └── mcp/                     # 커스텀 MCP 서버 소스
+        └── {분류}/              # 2차 분류별 디렉토리
 ```
 
 **2차 분류 규칙:**
@@ -192,7 +194,7 @@ resources/samples/{2차분류}/{sample-name}
 |---------|------|----------|------|
 | 커스텀 앱 | Python/Node.js 등으로 구현한 프로그램 | `customs/{분류}/` | generate_image |
 | 커스텀 CLI | 셸 스크립트로 구현한 도구 | `customs/{분류}/` | check-mermaid |
-| MCP 서버 | Model Context Protocol 기반 도구 (외부 패키지 또는 커스텀 구현) | `customs/{분류}/` | context7 |
+| MCP 서버 | Model Context Protocol 기반 도구 (외부 패키지 또는 커스텀 구현) | `mcp/{분류}/` | context7 |
 | LSP 서버 | Language Server Protocol 기반 코드 분석 | 불필요 (외부) | python-lsp-server |
 
 > **LSP 서버 참고:** LSP 서버는 `install.yaml`의 `lsp_servers` 항목에서 직접 선언하며,
@@ -200,7 +202,7 @@ resources/samples/{2차분류}/{sample-name}
 
 **공통 3단계 프로세스:**
 
-1. **소스 배치** — 커스텀 구현인 경우 `customs/{분류}/`에 배치 (외부 패키지는 불필요)
+1. **소스 배치** — 해당 카테고리 디렉토리에 배치 (외부 패키지는 불필요)
 2. **툴 가이드 작성** — `resources/tools/{tool-name}.md`에 도구별 가이드 문서 작성
 3. **카탈로그 등록** — `plugin-resources.md`의 "도구 목록" 테이블에 행 추가
 
@@ -467,7 +469,7 @@ MCP 서버는 외부 npm 패키지 또는 커스텀 구현으로 제공됨.
 #### 단계 1. 소스 배치
 
 - **외부 패키지:** 소스 배치 불필요. `claude mcp add-json` 명령으로 설치.
-- **커스텀 구현:** 소스 파일을 `resources/tools/customs/{분류}/`에 배치.
+- **커스텀 구현:** 소스 파일을 `resources/tools/mcp/{분류}/`에 배치.
 
 #### 단계 2. 툴 가이드 작성
 
@@ -571,7 +573,7 @@ claude mcp list -s user
 
 | 항목 | MCP 서버 | 커스텀 앱/CLI |
 |------|---------|-------------|
-| 소스 배치 | 외부 패키지는 불필요, 커스텀 구현은 `customs/{분류}/` | `customs/{분류}/` 아래 배치 |
+| 소스 배치 | 외부 패키지는 불필요, 커스텀 구현은 `mcp/{분류}/` | `customs/{분류}/` 아래 배치 |
 | 기본 정보 | 공식 사이트, 제공자 포함 | 소스 경로 포함 |
 | 설치 명령 | `claude mcp add-json` | pip/npm install 또는 불필요 |
 | 제공 도구 섹션 | 있음 (MCP 도구 목록) | 없음 |
