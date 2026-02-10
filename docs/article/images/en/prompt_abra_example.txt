@@ -1,4 +1,6 @@
-DMAP abra plugin component composition technical diagram.
+DMAP abra Plugin Component Composition Technical Diagram.
+
+IMPORTANT: ALL text in the diagram must be in English ONLY. Do NOT use any Korean, Chinese, Japanese or other non-Latin characters anywhere.
 
 Title: "abra Plugin — Dify DSL Automation"
 
@@ -34,4 +36,4 @@ Component relationship diagram (right side):
 User flow arrows:
 "Generate scenario" → "Generate DSL" → "Prototyping" → "Development plan" → "Agent development"
 
-Style: Clean component diagram, rounded corners, pastel colors, English text. White background.
+Style: Clean component diagram, rounded corners, pastel colors. White background. ALL TEXT MUST BE IN ENGLISH ONLY.

@@ -1,5 +1,7 @@
 DMAP (Declarative Multi-Agent Plugin) Architecture Diagram.
 
+IMPORTANT: ALL text in the diagram must be in English ONLY. Do NOT use any Korean, Chinese, Japanese or other non-Latin characters anywhere.
+
 Clean technical diagram showing layered structure based on Clean Architecture pattern.
 
 Components (flowing top to bottom in layer structure):
@@ -9,7 +11,7 @@ Components (flowing top to bottom in layer structure):
    - Direct skills: Setup, Utility
 3. Third layer: "Agents (Service)" — autonomous expert execution, light blue box
    - Role-based icons for architect, executor, explorer, etc.
-4. Fourth layer: "Gateway" — abstract→concrete mapping, light green box
+4. Fourth layer: "Gateway" — abstract to concrete mapping, light green box
    - Shows runtime-mapping.yaml
 5. Bottom layer: "Runtime" — execution environment, light gray box
    - Logos for Claude Code, Codex CLI, etc.
@@ -19,5 +21,4 @@ Components (flowing top to bottom in layer structure):
 Arrows: Skills → Agents → Gateway → Runtime (unidirectional dependency)
 Direct skills bypass Agents with dotted lines, connecting directly to Gateway
 
-Style: Clean flat design, rounded corner boxes, thin connecting lines, bright pastel colors.
-Use English text. White background.
+Style: Clean flat design, rounded corner boxes, thin connecting lines, bright pastel colors. White background. ALL TEXT MUST BE IN ENGLISH ONLY.

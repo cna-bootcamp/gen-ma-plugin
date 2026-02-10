@@ -1,4 +1,6 @@
-DMAP 4-Tier Agent Model tier mapping technical diagram.
+DMAP 4-Tier Agent Model Tier Mapping Technical Diagram.
+
+IMPORTANT: ALL text in the diagram must be in English ONLY. Do NOT use any Korean, Chinese, Japanese or other non-Latin characters anywhere.
 
 Left side: "Abstract Declaration (agentcard.yaml)" area
 - 4 tier boxes arranged vertically:
@@ -20,4 +22,4 @@ Right side: "Concrete Model (Actual LLM)" area
 Bottom escalation arrow:
 - Dotted arrow pointing upward from LOW "Complexity exceeded → Report to higher tier"
 
-Style: Clean mapping diagram, rounded corners, pastel colors, English text. White background.
+Style: Clean mapping diagram, rounded corners, pastel colors. White background. ALL TEXT MUST BE IN ENGLISH ONLY.

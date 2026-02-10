@@ -1,4 +1,6 @@
-DMAP Skill Activation Paths technical diagram.
+DMAP Skill Activation Paths Technical Diagram.
+
+IMPORTANT: ALL text in the diagram must be in English ONLY. Do NOT use any Korean, Chinese, Japanese or other non-Latin characters anywhere.
 
 Top: "User Request" starting point
 
@@ -24,4 +26,4 @@ Bottom: 5 skill types arranged side by side
 Delegating types (Core, Planning, Orchestrator) have solid borders
 Direct types (Setup, Utility) have dotted borders
 
-Style: Flowchart style, clean flat design, pastel colors, English text. White background.
+Style: Flowchart style, clean flat design, pastel colors. White background. ALL TEXT MUST BE IN ENGLISH ONLY.

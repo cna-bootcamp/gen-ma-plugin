@@ -1,24 +1,30 @@
-DMAP Prompt Assembly process technical diagram.
+DMAP Prompt Assembly Process Technical Diagram.
+
+IMPORTANT: ALL text in the diagram must be in English ONLY. Do NOT use any Korean, Chinese, Japanese or other non-Latin characters anywhere.
 
 3-step assembly process flowing left to right:
 
-Step 1 "Load Agent Package":
-- 3 file icons from agents/architect/ directory
-  - AGENT.md (markdown icon, blue) — "Goals + Workflow"
-  - agentcard.yaml (YAML icon, green) — "Role + Constraints"
-  - tools.yaml (YAML icon, yellow) — "Required Tools"
+Step 1 "Load Agent Package" (left side):
+- 3 file icons stacked vertically:
+  - AGENT.md (markdown icon, blue) — label: "Goals + Workflow"
+  - agentcard.yaml (YAML icon, green) — label: "Role + Constraints"
+  - tools.yaml (YAML icon, yellow) — label: "Required Tools"
+- Bottom label: "Step 1: Load Agent Package"
 
-Step 2 "Concretize with Gateway Reference":
-- Arrow referencing runtime-mapping.yaml
-  - tier: HIGH → claude-opus-4-6 (model concretization)
-  - file_read → Read, Glob (tool concretization)
-  - forbidden: file_write → Exclude Write, Edit (prohibition concretization)
+Step 2 "Concretize with Gateway Reference" (center):
+- Arrow from Step 1 pointing to runtime-mapping.yaml at top
+- 3 transformation rows inside a box:
+  - "tier: HIGH → claude-opus-4-6" with robot icon — "(Model Concretization)"
+  - "file_read → Read, Glob" with search icon — "(Tool Concretization)"
+  - "forbidden: file_write → Exclude Write, Edit" with X icon — "(Forbidden Concretization)"
+- Bottom label: "Step 2: Concretize with Gateway Reference"
 
-Step 3 "Final Prompt Assembly":
-- Large combined document icon
-  - Common static (runtime-mapping) section
-  - Agent-specific static (3 files merged) section
-  - Dynamic (task instructions) section
-- "Task(FQN, model, prompt) invocation" text
+Step 3 "Final Prompt Assembly" (right side):
+- Large stacked block with 3 colored layers:
+  - Top layer (light purple): "Common Static Section (Runtime Mapping)"
+  - Middle layer (light blue): "Agent-specific Static Section (3 Files Merged)"
+  - Bottom layer (light green): "Dynamic Section (Task Instructions)"
+- Below the block: "Task(FQN, model, prompt) Invocation"
+- Bottom label: "Step 3: Final Prompt Assembly"
 
-Style: Left-to-right flow diagram, clean flat design, pastel colors, English text. White background.
+Style: Left-to-right flow diagram, clean flat design, rounded corners, pastel colors. White background. ALL TEXT MUST BE IN ENGLISH ONLY.
