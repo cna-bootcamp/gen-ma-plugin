@@ -1,0 +1,62 @@
+---
+name: help
+description: DMAP 빌더 사용 안내
+type: utility
+user-invocable: true
+---
+
+# Help
+
+[HELP 활성화]
+
+## 목표
+
+DMAP 빌더 플러그인의 사용 가능한 명령과 자동 라우팅 규칙을 안내함.
+런타임 상주 파일(CLAUDE.md)에 라우팅 테이블을 등록하는 대신,
+이 스킬이 호출 시에만 토큰을 사용하여 사용자 발견성을 제공함.
+
+## 활성화 조건
+
+사용자가 `/dmap:help` 호출 시 또는 "도움말", "뭘 할 수 있어", "DMAP 사용법" 키워드 감지 시.
+
+## 워크플로우
+
+**중요: 추가적인 파일 탐색이나 에이전트 위임 없이, 아래 내용을 즉시 사용자에게 출력하세요.**
+
+### 사용 가능한 명령
+
+| 명령 | 설명 |
+|------|------|
+| `/dmap:develop-plugin` | DMAP 플러그인 개발 (4-Phase 워크플로우) |
+| `/dmap:setup` | 플러그인 초기 설정 |
+| `/dmap:help` | 사용 안내 (현재 보고 있는 화면) |
+
+### 자동 라우팅
+
+다음과 같은 요청은 자동으로 DMAP 빌더가 처리함:
+
+- "플러그인 만들어줘", "DMAP 플러그인 개발" → `/dmap:develop-plugin`
+- "DMAP 설정", "빌더 설정" → `/dmap:setup`
+- "도움말", "뭘 할 수 있어" → `/dmap:help`
+
+### 플러그인 개발 워크플로우
+
+`/dmap:develop-plugin` 실행 시 다음 4단계를 순차 수행함:
+
+```
+Phase 1: 요구사항 수집     ──→ 사용자 확인
+Phase 2: 설계 및 계획      ──→ 사용자 확인
+Phase 3: 플러그인 개발     ──→ 사용자 확인
+Phase 4: 검증 및 완료      ──→ 사용자 확인
+```
+
+### 참조 문서
+
+| 문서 | 경로 |
+|------|------|
+| DMAP 빌더 표준 | `standards/plugin-standard.md` |
+| Agent 표준 | `standards/plugin-standard-agent.md` |
+| Skill 표준 | `standards/plugin-standard-skill.md` |
+| Gateway 표준 | `standards/plugin-standard-gateway.md` |
+| 리소스 마켓플레이스 | `resources/plugin-resources.md` |
+| 플러그인 개발 가이드 | `resources/guides/plugin/plugin-dev-guide.md` |

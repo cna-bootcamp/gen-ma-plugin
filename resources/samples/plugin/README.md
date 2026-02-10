@@ -69,8 +69,63 @@ claude --plugin-dir ./develop-agent/plugin/abra
 > - `setup`: `.env` 설정, 가상환경 구성, 연결 테스트
 > - `gateway/install.yaml`을 읽어 필수 MCP/LSP 서버 자동 설치
 > - 설치 결과 검증 (`required: true` 항목 실패 시 중단)
-> - 런타임 상주 파일에 플러그인 활성화 라우팅 테이블 등록
+> - 플러그인 활성화 확인 (스킬 자동 탐색)
 > - 적용 범위 선택 (모든 프로젝트 / 현재 프로젝트만)
+
+---
+
+## 업그레이드
+
+### Git Repository 마켓플레이스
+
+저장소의 최신 커밋을 가져와 플러그인을 업데이트함.
+
+```bash
+# 마켓플레이스 업데이트 (최신 커밋 반영)
+claude plugin marketplace update abra
+
+# 플러그인 재설치
+claude plugin install abra@abra
+
+# 설치 확인
+claude plugin list
+```
+
+> **버전 고정**: `marketplace.json`에 특정 `ref`/`sha`가 지정된 경우,
+> 저장소 관리자가 해당 값을 업데이트해야 새 버전이 반영됨.
+
+> **갱신이 반영되지 않는 경우**: 플러그인을 삭제 후 재설치함.
+> ```bash
+> claude plugin remove abra@abra
+> claude plugin marketplace update abra
+> claude plugin install abra@abra
+> ```
+
+### 로컬 마켓플레이스
+
+로컬 경로의 파일을 직접 갱신한 뒤 마켓플레이스를 업데이트함.
+
+```bash
+# 1. 로컬 플러그인 소스 갱신
+cd ./develop-agent/plugin/abra
+git pull origin main
+
+# 2. 마켓플레이스 업데이트
+claude plugin marketplace update abra
+
+# 3. 플러그인 재설치
+claude plugin install abra@abra
+```
+
+> **갱신이 반영되지 않는 경우**: 플러그인을 삭제 후 재설치함.
+> ```bash
+> claude plugin remove abra@abra
+> claude plugin marketplace update abra
+> claude plugin install abra@abra
+> ```
+
+> **setup 재실행**: 업그레이드 후 `gateway/install.yaml`에 새 도구가 추가된 경우
+> `/abra:setup`을 재실행하여 누락된 도구를 설치할 것.
 
 ---
 

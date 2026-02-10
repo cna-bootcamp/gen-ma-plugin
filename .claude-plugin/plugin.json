@@ -1,0 +1,12 @@
+{
+  "name": "dmap",
+  "version": "1.0.0",
+  "description": "선언형 멀티에이전트 플러그인(DMAP) 빌더",
+  "author": {
+    "name": "Unicorn Inc."
+  },
+  "repository": "https://github.com/cna-bootcamp/gen-dmap",
+  "homepage": "https://github.com/cna-bootcamp/gen-dmap",
+  "license": "MIT",
+  "keywords": ["dmap", "plugin", "multi-agent", "builder", "declarative"]
+}

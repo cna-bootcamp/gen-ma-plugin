@@ -558,12 +558,68 @@ claude plugin validate .
 |------|------|
 | **개요** | 플러그인 목적, 주요 기능 요약 |
 | **설치** | setup 스킬 실행 방법 (`/{plugin}:setup`) |
+| **업그레이드** | Git/로컬 마켓플레이스별 플러그인 업데이트 방법 |
 | **사용법** | 슬래시 명령 목록 + 간단한 사용 예시 |
 | **요구사항** | 필수 MCP/LSP 서버, 런타임 버전 등 |
 | **라이선스** | 라이선스 정보 |
 
 > **템플릿**: README.md 작성 시 `resources/templates/plugin/README-plugin-template.md`를 참고할 것.
 > **예제**: 실제 작성 예시는 `resources/samples/plugin/README.md`를 참고할 것.
+
+### 업그레이드
+
+플러그인 업그레이드 방법은 마켓플레이스 등록 방식에 따라 다름.
+
+**Git Repository 마켓플레이스 (GitHub/Git URL)**
+
+저장소의 최신 커밋을 가져와 플러그인을 업데이트함.
+
+```bash
+# 마켓플레이스 업데이트 (최신 커밋 반영)
+claude plugin marketplace update {marketplace-name}
+
+# 플러그인 재설치
+claude plugin install {plugin-name}@{marketplace-name}
+
+# 설치 확인
+claude plugin list
+```
+
+> **버전 고정**: `marketplace.json`에 특정 `ref`/`sha`가 지정된 경우,
+> 저장소 관리자가 해당 값을 업데이트해야 새 버전이 반영됨.
+
+> **갱신이 반영되지 않는 경우**: 플러그인을 삭제 후 재설치함.
+> ```bash
+> claude plugin remove {plugin-name}@{marketplace-name}
+> claude plugin marketplace update {marketplace-name}
+> claude plugin install {plugin-name}@{marketplace-name}
+> ```
+
+**로컬 마켓플레이스**
+
+로컬 경로의 파일을 직접 갱신한 뒤 마켓플레이스를 업데이트함.
+
+```bash
+# 1. 로컬 플러그인 소스 갱신 (예: git pull 또는 파일 복사)
+cd {plugin-source-path}
+git pull origin main
+
+# 2. 마켓플레이스 업데이트
+claude plugin marketplace update {marketplace-name}
+
+# 3. 플러그인 재설치
+claude plugin install {plugin-name}@{marketplace-name}
+```
+
+> **갱신이 반영되지 않는 경우**: 플러그인을 삭제 후 재설치함.
+> ```bash
+> claude plugin remove {plugin-name}@{marketplace-name}
+> claude plugin marketplace update {marketplace-name}
+> claude plugin install {plugin-name}@{marketplace-name}
+> ```
+
+> **setup 재실행**: 업그레이드 후 `gateway/install.yaml`에 새 도구가 추가된 경우
+> `/{plugin-name}:setup`을 재실행하여 누락된 도구를 설치할 것.
 
 [Top](#dmap-빌더-표준)
 

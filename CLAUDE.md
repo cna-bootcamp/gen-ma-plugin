@@ -106,6 +106,23 @@
 # Lessons Learned
 
 
+# dmap 플러그인
+
+## 사용 가능한 명령
+
+| 명령 | 설명 |
+|------|------|
+| `/dmap:develop-plugin` | DMAP 플러그인 개발 (4-Phase 워크플로우) |
+| `/dmap:setup` | DMAP 빌더 초기 설정 |
+| `/dmap:help` | 사용 안내 |
+
+## 자동 라우팅
+
+다음과 같은 요청은 자동으로 dmap 플러그인이 처리합니다:
+- "플러그인 만들어줘", "DMAP 플러그인 개발" → /dmap:develop-plugin
+- "DMAP 설정", "빌더 설정" → /dmap:setup
+- "도움말", "뭘 할 수 있어" → /dmap:help
+
 # abra 플러그인
 
 ## 사용 가능한 명령

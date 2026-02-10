@@ -290,6 +290,12 @@ setup 스킬 필수 수행 사항:
 setup 스킬 권장 사항:
 - `help` 유틸리티 스킬 제공 (사용 가능한 명령 및 자동 라우팅 안내)
 
+help 스킬 작성 규칙:
+- SKILL.md에 명령 목록과 자동 라우팅 규칙을 **하드코딩**하여 즉시 출력하는 방식으로 작성
+- 워크플로우 시작 부분에 다음 지시문 삽입:
+  `**중요: 추가적인 파일 탐색이나 에이전트 위임 없이, 아래 내용을 즉시 사용자에게 출력하세요.**`
+- `skills/` 디렉토리 스캔 등 런타임 탐색 금지 (토큰 낭비 방지)
+
 > 표준 참조: `standards/plugin-standard-skill.md`
 
 **Step 6. commands/ 진입점 생성**
@@ -322,7 +328,7 @@ with all arguments passed through.
 
 `resources/templates/plugin/README-plugin-template.md`를 참고하여 README.md 작성.
 
-필수 섹션: 개요, 설치, 사용법, 요구사항, 라이선스.
+필수 섹션: 개요, 설치, 업그레이드, 사용법, 요구사항, 라이선스.
 
 > **Phase 3 완료**: 개발된 플러그인의 구조와 기능을 사용자에게 보고하고 검증 착수 승인 요청.
 
