@@ -409,8 +409,13 @@ claude plugin install dmap@unicorn
 
 ## 플러그인 개발 워크플로우
 
-`/dmap:develop-plugin` 명령으로 4-Phase 워크플로우가 자동 수행됨.
+플러그인 개발은 `/dmap:requirement-writer`로 요구사항 정의서를 먼저 작성한 후,
+`/dmap:develop-plugin`으로 4-Phase 워크플로우를 자동 수행함.
 각 Phase 완료 시 사용자 승인을 받아 다음 단계로 진행함.
+
+```
+/dmap:requirement-writer → /dmap:develop-plugin (Phase 1~4)
+```
 
 | Phase | 단계 | 주요 활동 |
 |:-----:|------|----------|
@@ -970,8 +975,13 @@ Basic usage flow:
 
 ## Plugin Development Workflow
 
-The `/dmap:develop-plugin` command automatically executes a 4-Phase workflow.
+Plugin development starts with `/dmap:requirement-writer` to create the requirements specification,
+then `/dmap:develop-plugin` automatically executes a 4-Phase workflow.
 User approval is obtained at the completion of each Phase before proceeding to the next.
+
+```
+/dmap:requirement-writer → /dmap:develop-plugin (Phase 1~4)
+```
 
 | Phase | Stage | Key Activities |
 |:-----:|-------|---------------|
