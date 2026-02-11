@@ -24,6 +24,8 @@ user-invocable: true
 
 사용자가 `/dmap:develop-plugin` 호출 시 또는 "플러그인 만들어줘", "DMAP 플러그인 개발" 키워드 감지 시.
 
+`/dmap:develop-plugin 외부호출 스킬 추가` 호출 시: 기존 플러그인에 ext-{플러그인명} 스킬만 추가 (Phase 3 Step 6의 외부 플러그인 연동 절차만 수행).
+
 [Top](#develop-plugin)
 
 ---
@@ -119,6 +121,7 @@ user-invocable: true
 | 템플릿 | 산출물 생성에 활용할 템플릿 |
 | 샘플 | 구현 참고용 샘플 코드/패턴 |
 | 도구 | 개발/검증에 필요한 도구 |
+| 플러그인 | 외부호출스킬(ext-{플러그인명})에서 위임할 대상 플러그인 명세 |
 
 **Step 2. 플러그인 구조 설계**
 
@@ -160,7 +163,21 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 3. Gateway 설정 (`install.yaml`, `runtime-mapping.yaml`)
 4. 공유자원 복사 (리소스 마켓플레이스 → 플러그인 디렉토리)
 5. 에이전트 개발 (`AGENT.md`, `agentcard.yaml`, `tools.yaml`)
-6. 스킬 개발 (setup 필수, help 권장, 기능 스킬)
+6. 스킬 개발
+   - 기본 스킬: `standards/plugin-standard-skill.md`의 각 유형별 표준 및 템플릿을 준수하여 생성
+     - setup 스킬 (필수): 플러그인 초기 설정
+     - help 스킬 (필수): 사용 안내
+     - 기능 스킬: 요구사항에 따른 Orchestrator/Worker/Planning/Utility 스킬
+   - 외부 플러그인 연동: 사용자에게 "유용한 외부 플러그인을 탐색할까요?" 확인
+     - abra 플러그인(AI Agent 개발 자동화)은 기본 추천, 그 외 탐색된 플러그인이 있으면 함께 추천
+     - 사용자가 취소한 경우: "나중에 `/dmap:develop-plugin 외부호출 스킬 추가`로 언제든 추가할 수 있습니다" 안내
+     - 사용자가 승인한 경우 ext-{플러그인명} 스킬 생성 절차:
+       1. `resources/plugin-resources.md`의 "플러그인 목록"에서 요구사항에 적합한 플러그인 선택
+       2. 선택한 플러그인과 선택 사유를 사용자에게 보고하고 승인 요청
+       3. 선택한 플러그인의 명세서(`resources/plugins/{분류}/{name}.md`) 로드
+       4. `standards/plugin-standard-skill.md`의 External 유형 템플릿을 기반으로 스킬 생성
+       5. 명세서의 ARGS 스키마, 실행 경로, 제공 스킬 정보를 기반으로 템플릿의 플레이스홀더 채움
+       6. 요구사항 정의서에서 도메인 컨텍스트를 추출하여 ext-{플러그인명} 스킬에 반영
 7. commands/ 진입점 생성
 8. 커스텀 앱/CLI 개발 (필요 시)
 9. README.md 작성
@@ -196,6 +213,7 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 - 생성된 에이전트/스킬 목록
 - 슬래시 명령 목록
 - 설치 방법
+- 외부호출 스킬 미포함 시: "외부 플러그인 연동이 필요하면 `/dmap:develop-plugin 외부호출 스킬 추가`로 추가 가능" 안내
 
 **Step 3. 공유자원 등록 (선택)**
 
@@ -246,6 +264,7 @@ Phase 4 완료 보고 후 사용자에게 GitHub 배포 여부를 문의함.
 | 4 | Phase 3은 `/oh-my-claudecode:ralph` 스킬 부스팅 필수 사용 |
 | 5 | Phase 2 Step 3은 `/oh-my-claudecode:ralplan` 스킬 부스팅 필수 사용 |
 | 6 | 생성된 SKILL.md에 공통 섹션(MUST 규칙, MUST NOT 규칙, 검증 체크리스트) 포함 보장 |
+| 7 | Phase 3 Step 6에서 ext-{플러그인명} 스킬을 External 유형 표준(`standards/plugin-standard-skill.md`)에 맞게 생성 |
 
 [Top](#develop-plugin)
 
@@ -274,5 +293,6 @@ Phase 4 완료 보고 후 사용자에게 GitHub 배포 여부를 문의함.
 - [ ] Phase 4 검증 항목에 표준 준수 확인이 포함되어 있는가
 - [ ] 취소/재개 섹션이 존재하는가
 - [ ] 참조 테이블의 문서 경로가 모두 정확한가
+- [ ] Phase 3 Step 6에서 ext-{플러그인명} 스킬이 External 유형 표준을 준수하여 생성되는가
 
 [Top](#develop-plugin)

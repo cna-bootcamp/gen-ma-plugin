@@ -20,6 +20,30 @@ DMAP 빌더 플러그인의 초기 설정을 수행함.
 
 ---
 
+## 선행 요구사항
+
+ext-abra 스킬을 사용하려면 Abra 플러그인이 설치되어 있어야 함.
+
+### Abra 플러그인 설치 확인
+
+다음 명령으로 Abra 플러그인 설치 여부를 확인:
+
+```bash
+claude plugin list
+```
+
+### Abra 플러그인 설치
+
+Abra 플러그인이 미설치된 경우 다음 명령으로 설치:
+
+```bash
+claude plugin add unicorn-plugins/abra
+```
+
+[Top](#setup)
+
+---
+
 ## 활성화 조건
 
 사용자가 `/dmap:setup` 호출 시.
