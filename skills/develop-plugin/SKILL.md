@@ -166,6 +166,7 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
      - setup 스킬 (필수): 플러그인 초기 설정
      - help 스킬 (필수): 사용 안내
      - add-ext-skill 스킬 (필수): 외부호출 스킬 추가 유틸리티 (아래 "add-ext-skill 생성 지침" 참조)
+     - remove-ext-skill 스킬 (필수): 외부호출 스킬 제거 유틸리티 (아래 "remove-ext-skill 생성 지침" 참조)
      - 기능 스킬: 요구사항에 따른 Orchestrator/Worker/Planning/Utility 스킬
    - 외부 플러그인 연동: 사용자에게 "유용한 외부 플러그인을 탐색할까요?" 확인
      - abra 플러그인(AI Agent 개발 자동화)은 기본 추천, 그 외 탐색된 플러그인이 있으면 함께 추천
@@ -240,6 +241,72 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
      검증 프로토콜, 상태 정리, 취소/재개, 스킬 부스팅, MUST 규칙, MUST NOT 규칙, 검증 체크리스트
    - 이 골격은 `standards/plugin-standard-skill.md`의 External 유형을 참조하되,
      add-ext-skill SKILL.md 내에 인라인하여 자기 완결적으로 동작
+
+   **remove-ext-skill 생성 지침**:
+
+   Utility 유형 표준(`standards/plugin-standard-skill.md`)을 준수하여
+   `skills/remove-ext-skill/SKILL.md`와 `commands/remove-ext-skill.md`를 생성함.
+   이 스킬은 사용자가 `/{플러그인명}:remove-ext-skill`로 호출하여
+   기존 외부호출 스킬(ext-{대상플러그인})을 제거할 수 있게 함.
+
+   생성할 remove-ext-skill SKILL.md의 frontmatter:
+   ```yaml
+   ---
+   name: remove-ext-skill
+   description: 외부호출 스킬(ext-{대상플러그인}) 제거 유틸리티
+   type: utility
+   user-invocable: true
+   ---
+   ```
+
+   생성할 commands/remove-ext-skill.md:
+   ```yaml
+   ---
+   description: 외부호출 스킬 제거
+   allowed-tools: Read, Edit, Bash, Skill
+   ---
+
+   Use the Skill tool to invoke the `{플러그인명}:remove-ext-skill` skill with all arguments passed through.
+   ```
+
+   remove-ext-skill SKILL.md의 워크플로우 골격:
+
+   - Step 1: 기존 ext-{} 스킬 목록 조회
+     - `skills/` 디렉토리에서 `ext-` 접두사로 시작하는 하위 디렉토리 탐색
+     - ext-{} 스킬이 0개이면 "제거할 외부호출 스킬이 없습니다" 안내 후 종료
+     - 발견된 ext-{} 스킬 목록을 사용자에게 표시
+   - Step 2: 제거할 스킬 선택
+     - AskUserQuestion으로 제거할 ext-{대상플러그인} 스킬 선택
+     - 선택된 스킬의 SKILL.md를 읽어 스킬 정보(name, description) 표시
+     - "정말 제거하시겠습니까?" 최종 확인 (AskUserQuestion: 예/아니오)
+     - 사용자가 취소하면 즉시 중단
+   - Step 3: ext-{대상플러그인} 스킬 디렉토리 삭제
+     - `skills/ext-{대상플러그인}/` 디렉토리 전체 삭제
+     - 삭제 성공 여부 확인
+   - Step 4: commands/ 진입점 삭제
+     - `commands/ext-{대상플러그인}.md` 파일 삭제
+     - 파일 미존재 시 무시 (이미 삭제된 상태일 수 있음)
+   - Step 5: help 스킬 업데이트
+     - `skills/help/SKILL.md`의 명령 테이블에서 `/{플러그인명}:ext-{대상플러그인}` 행 제거
+     - 제거 완료 메시지 출력: "ext-{대상플러그인} 외부호출 스킬이 제거되었습니다"
+
+   remove-ext-skill SKILL.md의 MUST 규칙 골격:
+   - 삭제 전 반드시 사용자 최종 확인을 받을 것
+   - ext-{} 접두사가 아닌 스킬(setup, help, add-ext-skill, remove-ext-skill 등)은 제거 대상에서 제외할 것
+   - help 스킬의 명령 테이블에서 해당 행만 정확히 제거할 것 (다른 행 훼손 금지)
+
+   remove-ext-skill SKILL.md의 MUST NOT 규칙 골격:
+   - ext-{} 접두사가 아닌 스킬 디렉토리를 삭제하지 않을 것
+   - 사용자 확인 없이 삭제를 수행하지 않을 것
+   - help 스킬의 명령 테이블 구조(헤더, 구분선)를 훼손하지 않을 것
+
+   remove-ext-skill SKILL.md의 검증 체크리스트 골격:
+   - [ ] ext-{} 스킬 0개일 때 조기 종료가 동작하는가
+   - [ ] 삭제 전 사용자 최종 확인 단계가 존재하는가
+   - [ ] skills/ext-{대상플러그인}/ 디렉토리가 완전히 삭제되었는가
+   - [ ] commands/ext-{대상플러그인}.md 파일이 삭제되었는가
+   - [ ] help 스킬의 명령 테이블에서 해당 행이 제거되었는가
+   - [ ] 다른 스킬/명령에 부수효과가 없는가
 7. commands/ 진입점 생성
 8. 커스텀 앱/CLI 개발 (필요 시)
 9. README.md 작성
@@ -262,6 +329,7 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 | setup 스킬 | setup 스킬 존재 |
 | help 스킬 (권장) | help 유틸리티 스킬 존재, 즉시 출력 방식 |
 | add-ext-skill 스킬 | add-ext-skill 유틸리티 스킬 존재 |
+| remove-ext-skill 스킬 | remove-ext-skill 유틸리티 스킬 존재 |
 | Gateway | `install.yaml` + `runtime-mapping.yaml` 존재 |
 | 슬래시 명령 | `commands/` 진입점 파일 존재 |
 | 도구 매핑 | `tools.yaml`의 추상 도구가 `runtime-mapping.yaml`에 매핑 |
@@ -326,6 +394,7 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 | 6 | 생성된 SKILL.md에 공통 섹션(MUST 규칙, MUST NOT 규칙, 검증 체크리스트) 포함 보장 |
 | 7 | Phase 3 Step 6에서 ext-{플러그인명} 스킬을 External 유형 표준(`standards/plugin-standard-skill.md`)에 맞게 생성 |
 | 8 | Phase 3 Step 6에서 add-ext-skill 유틸리티 스킬을 필수 생성 (setup, help와 동일 레벨) |
+| 9 | Phase 3 Step 6에서 remove-ext-skill 유틸리티 스킬을 필수 생성 (setup, help, add-ext-skill과 동일 레벨) |
 
 [Top](#develop-plugin)
 
@@ -357,5 +426,7 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 - [ ] Phase 3 Step 6에서 ext-{플러그인명} 스킬이 External 유형 표준을 준수하여 생성되는가
 - [ ] Phase 3 Step 6에서 add-ext-skill이 필수 스킬로 나열되어 있는가
 - [ ] add-ext-skill 생성 지침(워크플로우 골격, External 표준 인라인)이 명시되어 있는가
+- [ ] Phase 3 Step 6에서 remove-ext-skill이 필수 스킬로 나열되어 있는가
+- [ ] remove-ext-skill 생성 지침(5-Step 워크플로우, MUST/MUST NOT/검증 골격)이 명시되어 있는가
 
 [Top](#develop-plugin)
