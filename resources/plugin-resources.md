@@ -60,7 +60,6 @@
 
 | 2차 분류 | 샘플명 | 설명 | 상세 |
 |---------|-------|------|------|
-| plugin | abra | Dify 워크플로우 기반 AI Agent 개발 자동화 DMAP 플러그인 샘플 (에이전트 5, 스킬 8) | [상세](../plugin-samples/abra/) |
 | plugin | README | 플러그인 README.md 작성 예시 (Abra 플러그인 기준) | [상세](samples/plugin/README.md) |
 
 [Top](#리소스-마켓플레이스)

@@ -103,7 +103,7 @@ user-invocable: true
 
 **Step 4. 요구사항 정의서 업데이트**
 
-수집된 정보를 반영하여 완성된 정의서를 `plugin-samples/{플러그인명}/requirements.md`에 저장함.
+수집된 정보를 반영하여 완성된 정의서를 `.dmap/{플러그인명}/requirements.md`에 저장함.
 
 > **Phase 1 완료**: 업데이트된 요구사항 정의서를 사용자에게 보고하고 승인 요청.
 
@@ -144,7 +144,7 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 - 공유자원 외 필요한 외부 자원 파악 및 수집 계획
 - DMAP 표준 산출물 목록 및 생성 순서
 
-결과 파일: `plugin-samples/{플러그인명}/develop-plan.md`
+결과 파일: `.dmap/{플러그인명}/develop-plan.md`
 
 **Step 4. 사용자 검토 및 보완**
 
