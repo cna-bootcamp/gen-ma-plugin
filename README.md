@@ -23,6 +23,7 @@
   - [선언형 A2A (크로스-플러그인 위임)](#선언형-a2a-크로스-플러그인-위임)
     - [기존 A2A vs DMAP 선언형 A2A](#기존-a2a-vs-dmap-선언형-a2a)
     - [동작 방식](#동작-방식)
+  - [DMAP 생태계](#dmap-생태계)
   - [빠른 시작](#빠른-시작)
     - [사전 요구사항](#사전-요구사항)
     - [DMAP 빌더 설치](#dmap-빌더-설치)
@@ -263,6 +264,48 @@ DMAP A2A:         Markdown spec  + ext-{} skill + Skill tool call
 
 > **핵심 철학**: "가장 좋은 인프라는 없는 인프라" —
 > 프로토콜이 아닌 **문서 기반 계약(Contract)**으로 플러그인 간 협업을 실현함.
+
+[Top](#dmap-빌더)
+
+---
+
+## DMAP 생태계
+
+DMAP 생태계는 **DMAP 빌더 → AI팀(플러그인) → 외부 플러그인 → AI 서비스**의 계층으로 구성됨.
+각 AI팀은 필요한 외부 플러그인을 자유롭게 탈착(Plug & Unplug)하여 역량을 확장함.
+
+```
+┌─────────────────────────────────────────────┐
+│              DMAP 빌더                       │
+│         (멀티에이전트 플러그인 생성기)          │
+└──────────────────┬──────────────────────────┘
+                   │ 생성
+        ┌──────────┼──────────┐
+        ▼          ▼          ▼
+  ┌──────────┐ ┌──────────┐ ┌──────────┐
+  │blog-poster│ │curriculum│ │   ...    │
+  │  AI팀    │ │  AI팀    │ │  AI팀    │
+  └────┬─────┘ └────┬─────┘ └────┬─────┘
+       │  ext-{}    │  ext-{}    │  ext-{}
+       │  탈착      │  탈착      │  탈착
+       ▼            ▼            ▼
+  ┌─────────────────────────────────────────┐
+  │         외부 플러그인 풀                  │
+  │  ┌───────┐ ┌────────────────────┐       │
+  │  │ Abra  │ │github-release-mgr  │  ...  │
+  │  │(개발) │ │(릴리스)            │       │
+  │  └───────┘ └────────────────────┘       │
+  └─────────────────────────────────────────┘
+```
+
+| 현실 세계 비유 | DMAP 생태계 | 역할 |
+|--------------|------------|------|
+| 인력파견 회사 | DMAP 빌더 | 멀티에이전트 플러그인 생성기 |
+| 프로젝트 투입 팀 | 목적별 플러그인 | AI팀 (도메인 전문가 집단) |
+| 팀이 사용하는 외부 도구 | 외부 플러그인 (ext-{}) | 필요에 따라 탈착하는 확장 모듈 |
+| 팀이 납품한 서비스 | AI 서비스 | AI팀이 만든 결과물 |
+
+> 상세 문서: [DMAP 생태계 구조](https://github.com/unicorn-plugins/dmap/blob/main/docs/idea/dmap-ecosystem.md)
 
 [Top](#dmap-빌더)
 
@@ -540,6 +583,7 @@ https://github.com/unicorn-plugins/dmap
   - [선언형 A2A (크로스-플러그인 위임)](#선언형-a2a-크로스-플러그인-위임)
     - [기존 A2A vs DMAP 선언형 A2A](#기존-a2a-vs-dmap-선언형-a2a)
     - [동작 방식](#동작-방식)
+  - [DMAP 생태계](#dmap-생태계)
   - [빠른 시작](#빠른-시작)
     - [사전 요구사항](#사전-요구사항)
     - [DMAP 빌더 설치](#dmap-빌더-설치)
@@ -571,6 +615,7 @@ https://github.com/unicorn-plugins/dmap
   - [Declarative A2A (Cross-Plugin Delegation)](#declarative-a2a-cross-plugin-delegation)
     - [Traditional A2A vs DMAP Declarative A2A](#traditional-a2a-vs-dmap-declarative-a2a)
     - [How Declarative A2A Works](#how-declarative-a2a-works)
+  - [DMAP Ecosystem](#dmap-ecosystem)
   - [Quick Start](#quick-start)
     - [Prerequisites](#prerequisites)
     - [DMAP Builder Installation](#dmap-builder-installation)
@@ -780,6 +825,48 @@ DMAP A2A:         Markdown spec  + ext-{} skill + Skill tool call
 
 > **Core Philosophy**: "The best infrastructure is no infrastructure" —
 > Plugin collaboration through **document-based contracts**, not protocols.
+
+[Top](#dmap-builder)
+
+---
+
+## DMAP Ecosystem
+
+The DMAP ecosystem is structured in layers: **DMAP Builder → AI Teams (Plugins) → External Plugins → AI Services**.
+Each AI team freely attaches and detaches external plugins (Plug & Unplug) to extend its capabilities.
+
+```
+┌─────────────────────────────────────────────┐
+│              DMAP Builder                    │
+│       (Multi-Agent Plugin Generator)         │
+└──────────────────┬──────────────────────────┘
+                   │ generates
+        ┌──────────┼──────────┐
+        ▼          ▼          ▼
+  ┌──────────┐ ┌──────────┐ ┌──────────┐
+  │blog-poster│ │curriculum│ │   ...    │
+  │  AI Team │ │  AI Team │ │  AI Team │
+  └────┬─────┘ └────┬─────┘ └────┬─────┘
+       │  ext-{}    │  ext-{}    │  ext-{}
+       │  plug      │  plug      │  plug
+       ▼            ▼            ▼
+  ┌─────────────────────────────────────────┐
+  │       External Plugin Pool               │
+  │  ┌───────┐ ┌────────────────────┐       │
+  │  │ Abra  │ │github-release-mgr  │  ...  │
+  │  │ (Dev) │ │(Release)           │       │
+  │  └───────┘ └────────────────────┘       │
+  └─────────────────────────────────────────┘
+```
+
+| Real-World Analogy | DMAP Ecosystem | Role |
+|-------------------|----------------|------|
+| Staffing agency | DMAP Builder | Multi-agent plugin generator |
+| Project team | Purpose-specific plugin | AI Team (domain expert group) |
+| External tools used by team | External plugin (ext-{}) | Plug & Unplug extension modules |
+| Delivered service | AI Service | Output created by the AI team |
+
+> Detailed documentation: [DMAP Ecosystem Structure](https://github.com/unicorn-plugins/dmap/blob/main/docs/idea/dmap-ecosystem.md)
 
 [Top](#dmap-builder)
 
