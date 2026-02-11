@@ -20,6 +20,9 @@
     - [프롬프트 조립](#프롬프트-조립)
     - [4-Tier 모델 매핑](#4-tier-모델-매핑)
     - [스킬 활성화 경로](#스킬-활성화-경로)
+  - [선언형 A2A (크로스-플러그인 위임)](#선언형-a2a-크로스-플러그인-위임)
+    - [기존 A2A vs DMAP 선언형 A2A](#기존-a2a-vs-dmap-선언형-a2a)
+    - [동작 방식](#동작-방식)
   - [빠른 시작](#빠른-시작)
     - [사전 요구사항](#사전-요구사항)
     - [DMAP 빌더 설치](#dmap-빌더-설치)
@@ -48,6 +51,9 @@
     - [Prompt Assembly](#prompt-assembly)
     - [4-Tier Model Mapping](#4-tier-model-mapping)
     - [Skill Activation Paths](#skill-activation-paths)
+  - [Declarative A2A (Cross-Plugin Delegation)](#declarative-a2a-cross-plugin-delegation)
+    - [Traditional A2A vs DMAP Declarative A2A](#traditional-a2a-vs-dmap-declarative-a2a)
+    - [How Declarative A2A Works](#how-declarative-a2a-works)
   - [Quick Start](#quick-start)
     - [Prerequisites](#prerequisites)
     - [DMAP Builder Installation](#dmap-builder-installation)
@@ -227,6 +233,41 @@ DMAP은 3단계 레이어로 프롬프트를 조립함.
 
 ---
 
+## 선언형 A2A (크로스-플러그인 위임)
+
+DMAP은 플러그인 간 협업을 **External 스킬(ext-{})** 패턴으로 해결함.
+기존 A2A(Agent-to-Agent) 프로토콜이 HTTP 엔드포인트, Agent Card, 메시지 버스 등
+인프라를 요구하는 반면, DMAP은 **마크다운 한 장**으로 크로스-플러그인 위임을 구현함.
+
+### 기존 A2A vs DMAP 선언형 A2A
+
+| 비교 항목 | 기존 A2A (Google A2A 등) | DMAP 선언형 A2A |
+|-----------|:----------------------:|:--------------:|
+| 통신 방식 | HTTP/JSON-RPC 엔드포인트 | Skill→Skill 호출 (FQN) |
+| 인터페이스 선언 | Agent Card (JSON) | 플러그인 명세서 (Markdown) |
+| 인프라 요구사항 | 서비스 디스커버리, 메시지 버스 | 없음 (Zero Infrastructure) |
+| 연동 코드 | SDK 기반 클라이언트 코드 | ext-{} 스킬 자동 생성 |
+| 라이프사이클 관리 | 수동 구현 | add/remove-ext-skill 유틸리티 |
+
+### 동작 방식
+
+1. **플러그인 명세서 공개** — 대상 플러그인이 리소스 마켓플레이스에 명세서(FQN, ARGS 스키마, 실행 경로)를 등록
+2. **ext-{} 스킬 생성** — `/add-ext-skill` 유틸리티로 명세서 기반 External 스킬 자동 생성
+3. **Skill→Skill 위임** — 호출 측이 도메인 컨텍스트를 수집하여 FQN으로 대상 스킬 호출
+4. **라이프사이클 관리** — `/remove-ext-skill`로 더 이상 필요 없는 연동을 깔끔하게 제거
+
+```
+Traditional A2A:  HTTP endpoints + Agent Card + Message Bus + SDK client
+DMAP A2A:         Markdown spec  + ext-{} skill + Skill tool call
+```
+
+> **핵심 철학**: "가장 좋은 인프라는 없는 인프라" —
+> 프로토콜이 아닌 **문서 기반 계약(Contract)**으로 플러그인 간 협업을 실현함.
+
+[Top](#dmap-빌더)
+
+---
+
 ## 빠른 시작
 
 ### 사전 요구사항
@@ -305,6 +346,9 @@ claude plugin install dmap@unicorn
 |------|------|
 | `/dmap:develop-plugin` | 4-Phase 워크플로우로 플러그인 개발 |
 | `/dmap:requirement-writer` | 요구사항 정의서 작성 지원 (AI 자동 완성) |
+| `/dmap:publish` | 개발 완료된 플러그인을 GitHub에 배포 |
+| `/dmap:add-ext-skill` | 외부호출 스킬(ext-{대상플러그인}) 추가 |
+| `/dmap:remove-ext-skill` | 외부호출 스킬(ext-{대상플러그인}) 제거 |
 | `/dmap:setup` | 설치 검증 (플러그인 구조 및 표준 문서 확인) |
 | `/dmap:help` | 사용 안내 |
 
@@ -368,11 +412,19 @@ dmap/
 ├── skills/                  # DMAP 빌더 스킬
 │   ├── develop-plugin/      #   플러그인 개발 (4-Phase)
 │   ├── requirement-writer/  #   요구사항 정의서 작성 지원
+│   ├── publish/             #   GitHub 배포
+│   ├── add-ext-skill/       #   외부호출 스킬 추가 유틸리티
+│   ├── remove-ext-skill/    #   외부호출 스킬 제거 유틸리티
+│   ├── ext-{plugin}/        #   외부 플러그인 위임 (선언형 A2A)
 │   ├── setup/               #   초기 설정
 │   └── help/                #   사용 안내
 ├── commands/                # 슬래시 명령 진입점
 │   ├── develop-plugin.md
 │   ├── requirement-writer.md
+│   ├── publish.md
+│   ├── add-ext-skill.md
+│   ├── remove-ext-skill.md
+│   ├── ext-{plugin}.md
 │   ├── setup.md
 │   └── help.md
 ├── references/              # 참조 문서
@@ -485,6 +537,9 @@ https://github.com/unicorn-plugins/dmap
     - [프롬프트 조립](#프롬프트-조립)
     - [4-Tier 모델 매핑](#4-tier-모델-매핑)
     - [스킬 활성화 경로](#스킬-활성화-경로)
+  - [선언형 A2A (크로스-플러그인 위임)](#선언형-a2a-크로스-플러그인-위임)
+    - [기존 A2A vs DMAP 선언형 A2A](#기존-a2a-vs-dmap-선언형-a2a)
+    - [동작 방식](#동작-방식)
   - [빠른 시작](#빠른-시작)
     - [사전 요구사항](#사전-요구사항)
     - [DMAP 빌더 설치](#dmap-빌더-설치)
@@ -513,6 +568,9 @@ https://github.com/unicorn-plugins/dmap
     - [Prompt Assembly](#prompt-assembly)
     - [4-Tier Model Mapping](#4-tier-model-mapping)
     - [Skill Activation Paths](#skill-activation-paths)
+  - [Declarative A2A (Cross-Plugin Delegation)](#declarative-a2a-cross-plugin-delegation)
+    - [Traditional A2A vs DMAP Declarative A2A](#traditional-a2a-vs-dmap-declarative-a2a)
+    - [How Declarative A2A Works](#how-declarative-a2a-works)
   - [Quick Start](#quick-start)
     - [Prerequisites](#prerequisites)
     - [DMAP Builder Installation](#dmap-builder-installation)
@@ -692,6 +750,41 @@ The runtime automatically scans the `skills/` directory to discover available sk
 
 ---
 
+## Declarative A2A (Cross-Plugin Delegation)
+
+DMAP solves cross-plugin collaboration through the **External Skill (ext-{})** pattern.
+While traditional A2A (Agent-to-Agent) protocols require HTTP endpoints, Agent Cards, and message buses,
+DMAP achieves cross-plugin delegation with **a single Markdown file**.
+
+### Traditional A2A vs DMAP Declarative A2A
+
+| Comparison | Traditional A2A (Google A2A, etc.) | DMAP Declarative A2A |
+|------------|:----------------------------------:|:--------------------:|
+| Communication | HTTP/JSON-RPC endpoints | Skill→Skill call (FQN) |
+| Interface Declaration | Agent Card (JSON) | Plugin spec (Markdown) |
+| Infrastructure Required | Service discovery, message bus | None (Zero Infrastructure) |
+| Integration Code | SDK-based client code | ext-{} skill auto-generated |
+| Lifecycle Management | Manual implementation | add/remove-ext-skill utilities |
+
+### How Declarative A2A Works
+
+1. **Publish plugin spec** — Target plugin registers its spec (FQN, ARGS schema, execution paths) in the Resource Marketplace
+2. **Generate ext-{} skill** — `/add-ext-skill` utility auto-generates an External skill from the spec
+3. **Skill→Skill delegation** — Caller collects domain context and invokes the target skill via FQN
+4. **Lifecycle management** — `/remove-ext-skill` cleanly removes integrations no longer needed
+
+```
+Traditional A2A:  HTTP endpoints + Agent Card + Message Bus + SDK client
+DMAP A2A:         Markdown spec  + ext-{} skill + Skill tool call
+```
+
+> **Core Philosophy**: "The best infrastructure is no infrastructure" —
+> Plugin collaboration through **document-based contracts**, not protocols.
+
+[Top](#dmap-builder)
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -770,6 +863,9 @@ claude plugin install dmap@unicorn
 |---------|-------------|
 | `/dmap:develop-plugin` | Develop a plugin via 4-Phase workflow |
 | `/dmap:requirement-writer` | Requirements specification writing support (AI auto-completion) |
+| `/dmap:publish` | Deploy completed plugin to GitHub |
+| `/dmap:add-ext-skill` | Add external skill (ext-{target plugin}) |
+| `/dmap:remove-ext-skill` | Remove external skill (ext-{target plugin}) |
 | `/dmap:setup` | Installation verification (plugin structure and standards check) |
 | `/dmap:help` | Usage guide |
 
@@ -833,11 +929,19 @@ dmap/
 ├── skills/                  # DMAP Builder skills
 │   ├── develop-plugin/      #   Plugin development (4-Phase)
 │   ├── requirement-writer/  #   Requirements specification writing support
+│   ├── publish/             #   GitHub deployment
+│   ├── add-ext-skill/       #   External skill add utility
+│   ├── remove-ext-skill/    #   External skill remove utility
+│   ├── ext-{plugin}/        #   External plugin delegation (Declarative A2A)
 │   ├── setup/               #   Initial setup
 │   └── help/                #   Usage guide
 ├── commands/                # Slash command entry points
 │   ├── develop-plugin.md
 │   ├── requirement-writer.md
+│   ├── publish.md
+│   ├── add-ext-skill.md
+│   ├── remove-ext-skill.md
+│   ├── ext-{plugin}.md
 │   ├── setup.md
 │   └── help.md
 ├── references/              # Reference documents
