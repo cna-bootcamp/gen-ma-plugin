@@ -37,7 +37,10 @@ claude plugin list
 Abra 플러그인이 미설치된 경우 다음 명령으로 설치:
 
 ```bash
-claude plugin add unicorn-plugins/abra
+claude plugin marketplace add unicorn-plugins/abra
+```
+```bash
+claude plugin install abra@abra
 ```
 
 [Top](#setup)

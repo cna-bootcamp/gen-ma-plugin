@@ -21,7 +21,7 @@
 |------|---|
 | 플러그인명 | abra |
 | 설명 | Dify 워크플로우 기반 AI Agent 개발 자동화 |
-| 설치 | `claude plugin add unicorn-plugins/abra` |
+| 설치 | `claude plugin marketplace add unicorn-plugins/abra`,  `claude plugin install abra@abra` |
 | 저장소 | https://github.com/unicorn-plugins/abra |
 
 [Top](#abra-플러그인-명세)
@@ -104,7 +104,7 @@ Skill→Skill 입력 전달 규약에 따라 `ARGS` 루트 키 아래에 JSON �
 
 ## 선행 요구사항
 
-- abra 플러그인 설치 필수 (`claude plugin add unicorn-plugins/abra`)
+- abra 플러그인 설치 필수 (`claude plugin marketplace add unicorn-plugins/abra`, `claude plugin install abra@abra`)
 - Dify 프로토타이핑 시 Dify 서버 접근 필요 (Full Path만 해당)
 
 [Top](#abra-플러그인-명세)

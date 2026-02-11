@@ -1006,7 +1006,7 @@ user-invocable: true
 {외부 플러그인명} 플러그인이 설치되어 있어야 함.
 
 확인: `claude plugin list`
-설치: `claude plugin add {org}/{plugin}`
+설치: `claude plugin marketplace add {org}/{plugin}`, `claude plugin install {plugin}@{marketplace}`
 
 ## 활성화 조건
 
