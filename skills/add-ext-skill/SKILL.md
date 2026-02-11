@@ -7,26 +7,6 @@ user-invocable: true
 
 # Add Ext Skill
 
-- [Add Ext Skill](#add-ext-skill)
-  - [목표](#목표)
-  - [활성화 조건](#활성화-조건)
-  - [워크플로우](#워크플로우)
-    - [Step 1: 대상 플러그인 탐색](#step-1-대상-플러그인-탐색)
-    - [Step 2: 대상 플러그인 선택](#step-2-대상-플러그인-선택)
-    - [Step 3: 플러그인 명세서 다운로드](#step-3-플러그인-명세서-다운로드)
-    - [Step 4: 도메인 컨텍스트 수집](#step-4-도메인-컨텍스트-수집)
-    - [Step 5: ext-{대상플러그인} External 스킬 생성](#step-5-ext-대상플러그인-external-스킬-생성)
-    - [Step 6: commands/ 진입점 생성](#step-6-commands-진입점-생성)
-    - [Step 7: help 스킬 업데이트](#step-7-help-스킬-업데이트)
-  - [참고사항](#참고사항)
-    - [External 스킬 frontmatter](#external-스킬-frontmatter)
-    - [External 스킬 필수 섹션](#external-스킬-필수-섹션)
-    - [External 스킬 commands 진입점](#external-스킬-commands-진입점)
-    - [Skill→Skill 입력 전달 규약](#skillskill-입력-전달-규약)
-  - [MUST 규칙](#must-규칙)
-  - [MUST NOT 규칙](#must-not-규칙)
-  - [검증 체크리스트](#검증-체크리스트)
-
 [ADD-EXT-SKILL 활성화]
 
 ---
@@ -171,6 +151,7 @@ ARGS JSON 루트 키 구조:
 | 1 | 이미 존재하는 ext-{} 스킬을 덮어쓰지 않음 |
 | 2 | 명세서에 정의되지 않은 스킬 FQN을 임의로 생성하지 않음 |
 | 3 | help 스킬의 기존 명령 테이블 구조(헤더, 구분선)를 훼손하지 않음 |
+| 4 | 생성하는 SKILL.md에 TOC(목차)를 추가하지 않음 |
 
 [Top](#add-ext-skill)
 
@@ -184,5 +165,6 @@ ARGS JSON 루트 키 구조:
 - [ ] skills/ext-{대상플러그인}/SKILL.md가 External 유형 표준을 준수하는가
 - [ ] commands/ext-{대상플러그인}.md가 생성되는가
 - [ ] help 스킬의 명령 테이블에 새 명령이 추가되는가
+- [ ] 생성된 SKILL.md에 TOC(목차)가 포함되어 있지 않은가
 
 [Top](#add-ext-skill)

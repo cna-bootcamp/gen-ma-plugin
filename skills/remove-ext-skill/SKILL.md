@@ -7,18 +7,6 @@ user-invocable: true
 
 # Remove Ext Skill
 
-- [목표](#목표)
-- [활성화 조건](#활성화-조건)
-- [워크플로우](#워크플로우)
-  - [Step 1: 기존 ext-{} 스킬 목록 조회](#step-1-기존-ext--스킬-목록-조회)
-  - [Step 2: 제거할 스킬 선택](#step-2-제거할-스킬-선택)
-  - [Step 3: ext-{대상플러그인} 스킬 디렉토리 삭제](#step-3-ext-대상플러그인-스킬-디렉토리-삭제)
-  - [Step 4: commands/ 진입점 삭제](#step-4-commands-진입점-삭제)
-  - [Step 5: help 스킬 업데이트](#step-5-help-스킬-업데이트)
-- [MUST 규칙](#must-규칙)
-- [MUST NOT 규칙](#must-not-규칙)
-- [검증 체크리스트](#검증-체크리스트)
-
 [REMOVE-EXT-SKILL 활성화]
 
 ---
