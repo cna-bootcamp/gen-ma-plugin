@@ -1,0 +1,461 @@
+import { readFile, mkdir, appendFile } from 'fs/promises';
+import path from 'path';
+import type { SSEEvent, QuestionItem } from '@dmap-web/shared';
+import { loadOmcAgents, getSkillPatterns } from './omc-integration.js';
+
+let logFilePath: string | null = null;
+
+async function initLog(dmapProjectDir: string, skillName: string): Promise<void> {
+  const logsDir = path.join(dmapProjectDir, '.dmap', 'logs');
+  await mkdir(logsDir, { recursive: true });
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  logFilePath = path.join(logsDir, `${ts}_${skillName}.log`);
+  await appendFile(logFilePath, `=== ${skillName} started at ${new Date().toISOString()} ===\n`);
+}
+
+async function log(label: string, data?: unknown): Promise<void> {
+  if (!logFilePath) return;
+  const line = data !== undefined
+    ? `[${new Date().toISOString()}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}\n`
+    : `[${new Date().toISOString()}] ${label}\n`;
+  await appendFile(logFilePath, line).catch(() => {});
+}
+
+export interface StreamCallbacks {
+  onEvent: (event: SSEEvent) => void;
+  onSessionId?: (sessionId: string) => void;
+}
+
+interface RunQueryResult {
+  hasContent: boolean;
+  sdkSessionId?: string;
+  askUserQuestion?: {
+    toolUseId: string;
+    questions: any[];
+  };
+  pendingQuestions?: {
+    title: string;
+    questions: QuestionItem[];
+  };
+}
+
+const ASK_USER_REGEX_G = /<!--ASK_USER-->\s*([\s\S]*?)\s*<!--\/ASK_USER-->/g;
+
+function parseSkillSteps(skillContent: string): { steps: Array<{ step: number; label: string }>; isPhaseMode: boolean } | null {
+  // Try Phase pattern first (higher-level grouping like develop-plugin)
+  const phasePattern = /^###\s+Phase\s+(\d+)[:.]\s*(.+)$/gm;
+  let matches = [...skillContent.matchAll(phasePattern)];
+  if (matches.length >= 2) {
+    return {
+      isPhaseMode: true,
+      steps: matches.map(m => ({
+        step: parseInt(m[1], 10),
+        label: m[2].replace(/\s*→\s*Agent:.*$/, '').replace(/\s*\(.*?\)\s*$/, '').replace(/\s*--\s*.+$/, '').trim(),
+      })),
+    };
+  }
+
+  // Try Step pattern (like requirement-writer, publish)
+  const stepPattern = /^###\s+Step\s+(\d+)[:.]\s*(.+)$/gm;
+  matches = [...skillContent.matchAll(stepPattern)];
+  if (matches.length >= 2) {
+    return {
+      isPhaseMode: false,
+      steps: matches.map(m => ({
+        step: parseInt(m[1], 10),
+        label: m[2].replace(/\s*→\s*Agent:.*$/, '').replace(/\s*\(.*?\)\s*$/, '').replace(/\s*--\s*.+$/, '').trim(),
+      })),
+    };
+  }
+
+  return null;
+}
+
+function detectStepFromText(text: string, isPhaseMode: boolean): number | null {
+  const keyword = isPhaseMode ? 'Phase' : 'Step';
+  const regex = new RegExp(`${keyword}\\s+(\\d+)`, 'gi');
+  const matches = [...text.matchAll(regex)];
+  if (matches.length > 0) {
+    return Math.max(...matches.map(m => parseInt(m[1], 10)));
+  }
+  return null;
+}
+
+function extractAskUserBlocks(text: string): { cleanText: string; title: string; questions: any[] } | null {
+  const matches = [...text.matchAll(ASK_USER_REGEX_G)];
+  if (matches.length === 0) return null;
+
+  const allQuestions: any[] = [];
+  let title = '질문';
+
+  for (const m of matches) {
+    try {
+      const parsed = JSON.parse(m[1]);
+      if (parsed.title) title = parsed.title;
+      if (Array.isArray(parsed.questions)) allQuestions.push(...parsed.questions);
+    } catch (e) {
+      console.error('[SDK] Failed to parse ASK_USER JSON:', e);
+    }
+  }
+
+  if (allQuestions.length === 0) return null;
+
+  const cleanText = text.replace(ASK_USER_REGEX_G, '').trim();
+  return { cleanText, title, questions: allQuestions };
+}
+
+const ASK_USER_INSTRUCTION = `
+IMPORTANT: When you need to ask the user questions or collect input, you MUST output them in this exact format instead of plain text questions.
+CRITICAL: Put ALL questions in a SINGLE <!--ASK_USER--> block. Do NOT use multiple blocks.
+<!--ASK_USER-->
+{"title":"섹션 제목","questions":[
+  {"question":"자유 입력 질문","description":"상세 설명","type":"text","suggestion":"제안값","example":"예시값"},
+  {"question":"하나만 선택","description":"설명","type":"radio","options":["옵션A","옵션B","옵션C"]},
+  {"question":"복수 선택 가능","description":"설명","type":"checkbox","options":["항목1","항목2","항목3"]}
+]}
+<!--/ASK_USER-->
+Rules:
+- type "text": free text input. Use ONLY when the answer is completely open-ended with no predictable options (e.g., project name, free description).
+- type "radio": single selection. Use when only ONE choice allowed from a known set.
+- type "checkbox": multiple selection. Use when MULTIPLE choices allowed from a known set.
+- PREFER radio/checkbox over text whenever you can enumerate reasonable options. For example:
+  - Target users, categories, formats, regions, features → checkbox or radio with options
+  - Names, descriptions, custom specifications → text
+- "suggestion" sets default value for text fields, "example" sets placeholder hint.
+- Do NOT add "직접 지정", "직접 입력", or "기타" options. The UI adds a custom input field automatically.
+- Output your explanation text normally before the JSON block. Do NOT use numbered plain text questions.`;
+
+async function runQuery(
+  prompt: string,
+  options: Record<string, unknown>,
+  callbacks: StreamCallbacks,
+): Promise<RunQueryResult> {
+  const { query } = await import('@anthropic-ai/claude-code');
+
+  const abortController = new AbortController();
+  options.abortController = abortController;
+
+  let hasContent = false;
+  let sdkSessionId: string | undefined;
+  let pendingQuestions: RunQueryResult['pendingQuestions'] = undefined;
+
+  for await (const message of query({
+    prompt,
+    options: options as any,
+  })) {
+    if (abortController.signal.aborted) break;
+
+    console.log(`[SDK] message.type=${message.type}`, JSON.stringify(message).slice(0, 500));
+    await log(`message.type=${message.type}`, message);
+
+    // Capture session ID from system init
+    if (message.type === 'system') {
+      const sysMsg = message as any;
+      if (sysMsg.session_id) {
+        sdkSessionId = sysMsg.session_id;
+      }
+    }
+
+    // Assistant messages with content blocks
+    if (message.type === 'assistant') {
+      const assistantMsg = message as any;
+      const content = assistantMsg.message?.content ?? assistantMsg.content;
+      if (Array.isArray(content)) {
+        for (const block of content) {
+          if (block.type === 'text' && block.text) {
+            const extracted = extractAskUserBlocks(block.text);
+            if (extracted) {
+              if (extracted.cleanText) {
+                hasContent = true;
+                callbacks.onEvent({ type: 'text', text: extracted.cleanText });
+              }
+              pendingQuestions = { title: extracted.title, questions: extracted.questions };
+              console.log(`[SDK] Parsed ${extracted.questions.length} structured questions`);
+              await log('parsed_questions', pendingQuestions);
+            } else {
+              hasContent = true;
+              callbacks.onEvent({ type: 'text', text: block.text });
+            }
+          } else if (block.type === 'tool_use') {
+            if (block.name === 'AskUserQuestion') {
+              console.log(`[SDK] AskUserQuestion detected, aborting for user input`);
+              abortController.abort();
+              return {
+                hasContent,
+                sdkSessionId,
+                askUserQuestion: {
+                  toolUseId: block.id,
+                  questions: block.input?.questions || [],
+                },
+              };
+            }
+            // Emit agent event for Task delegations
+            if (block.name === 'Task') {
+              const taskInput = block.input as Record<string, unknown> | undefined;
+              if (taskInput) {
+                // Infer model from agent name suffix when not explicitly set
+                let model = taskInput.model as string | undefined;
+                if (!model) {
+                  const agentName = String(taskInput.subagent_type || '').split(':').pop() || '';
+                  if (agentName.endsWith('-low')) model = 'haiku';
+                  else if (agentName.endsWith('-high')) model = 'opus';
+                  else model = 'sonnet';
+                }
+                callbacks.onEvent({
+                  type: 'agent',
+                  id: block.id,
+                  subagentType: String(taskInput.subagent_type || 'unknown'),
+                  model,
+                  description: String(taskInput.description || ''),
+                });
+              }
+            }
+            // Extract short description from tool input
+            const input = block.input as Record<string, unknown> | undefined;
+            let desc = '';
+            if (input) {
+              if (block.name === 'Bash') desc = String(input.command || '').slice(0, 80);
+              else if (block.name === 'Read') desc = String(input.file_path || '').split(/[\\/]/).pop() || '';
+              else if (block.name === 'Write' || block.name === 'Edit') desc = String(input.file_path || '').split(/[\\/]/).pop() || '';
+              else if (block.name === 'Grep') desc = String(input.pattern || '');
+              else if (block.name === 'Glob') desc = String(input.pattern || '');
+              else if (block.name === 'Task') desc = String(input.description || '');
+            }
+            callbacks.onEvent({ type: 'tool', name: block.name, id: block.id, description: desc || undefined });
+          }
+        }
+      }
+    }
+
+    // Result with session ID — send text BEFORE complete
+    if (message.type === 'result') {
+      const resultMsg = message as any;
+      if (resultMsg.result) {
+        const extracted = extractAskUserBlocks(resultMsg.result as string);
+        if (extracted) {
+          if (extracted.cleanText) {
+            hasContent = true;
+            callbacks.onEvent({ type: 'text', text: extracted.cleanText });
+          }
+          pendingQuestions = { title: extracted.title, questions: extracted.questions };
+        } else {
+          hasContent = true;
+          callbacks.onEvent({ type: 'text', text: resultMsg.result });
+        }
+      }
+      // Emit usage data
+      if (resultMsg.total_cost_usd !== undefined || resultMsg.usage) {
+        const usageData = (resultMsg.usage || {}) as Record<string, number>;
+        callbacks.onEvent({
+          type: 'usage',
+          inputTokens: usageData.input_tokens || 0,
+          outputTokens: usageData.output_tokens || 0,
+          cacheReadTokens: usageData.cache_read_input_tokens || 0,
+          cacheCreationTokens: usageData.cache_creation_input_tokens || 0,
+          totalCostUsd: (resultMsg.total_cost_usd as number) || 0,
+          durationMs: (resultMsg.duration_ms as number) || 0,
+          numTurns: (resultMsg.num_turns as number) || 0,
+        });
+      }
+      if (resultMsg.session_id) {
+        sdkSessionId = resultMsg.session_id;
+        callbacks.onSessionId?.(resultMsg.session_id);
+      }
+    }
+  }
+
+  return { hasContent, sdkSessionId, pendingQuestions };
+}
+
+export interface ExecuteSkillResult {
+  fullyComplete: boolean;
+}
+
+export async function executeSkill(
+  skillName: string,
+  input: string | undefined,
+  dmapProjectDir: string,
+  lang: string | undefined,
+  callbacks: StreamCallbacks,
+  waitForUserResponse: () => Promise<string>,
+  webSessionId: string,
+  resumeSessionId?: string,
+  filePaths?: string[],
+): Promise<ExecuteSkillResult> {
+  // Always read SKILL.md (needed for appendSystemPrompt on every call, including resume)
+  const skillPath = path.join(dmapProjectDir, 'skills', skillName, 'SKILL.md');
+  let skillContent = '';
+  try {
+    skillContent = await readFile(skillPath, 'utf-8');
+    console.log(`[SDK] Loaded SKILL.md for "${skillName}" (${skillContent.length} chars)`);
+  } catch {
+    console.error(`[SDK] SKILL.md not found at ${skillPath}`);
+    callbacks.onEvent({ type: 'error', message: `Skill "${skillName}" not found` });
+    return { fullyComplete: true };
+  }
+
+  // Parse steps from SKILL.md for progress tracking
+  const parsedSkillSteps = parseSkillSteps(skillContent);
+  if (parsedSkillSteps) {
+    console.log(`[SDK] Parsed ${parsedSkillSteps.steps.length} ${parsedSkillSteps.isPhaseMode ? 'phases' : 'steps'} from SKILL.md`);
+    callbacks.onEvent({ type: 'progress', steps: parsedSkillSteps.steps, activeStep: 1 });
+  }
+
+  // Load OMC agents if available
+  const omcAgents = await loadOmcAgents();
+  if (omcAgents) {
+    console.log(`[SDK] Loaded ${Object.keys(omcAgents).length} OMC agents`);
+  }
+
+  const options: Record<string, unknown> = {
+    model: 'claude-sonnet-4-5-20250929',
+    permissionMode: 'bypassPermissions',
+    cwd: dmapProjectDir,
+    maxTurns: 15,
+    // Prevent the model from delegating to agents/skills instead of working directly
+    disallowedTools: ['EnterPlanMode', 'ExitPlanMode', 'TodoWrite'],
+    ...(omcAgents ? { agents: omcAgents } : {}),
+    // Place SKILL.md in system prompt so it's treated as instructions, not user input
+    ...(skillContent ? {
+      appendSystemPrompt: `${lang && lang !== 'ko' ? `### LANGUAGE OVERRIDE (HIGHEST PRIORITY) ###
+You MUST respond ONLY in English. Every single message, explanation, question, and status update you produce MUST be written in English.
+The skill instructions below are written in Korean — read and understand them, but ALL your output MUST be in English. Do NOT output any Korean text.
+### END LANGUAGE OVERRIDE ###\n\n` : ''}IMPORTANT: You are a skill executor. Execute the skill instructions below using available tools (Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch, Task, etc.). Do NOT invoke other skills. Do NOT enter plan mode. Do NOT use TodoWrite.
+AGENT DELEGATION: You MAY use the Task tool for parallel or complex work. Available OMC agents are injected with "omc-" prefix. Use agent names like "omc-architect", "omc-executor", "omc-explore", "omc-planner", "omc-build-fixer", etc. You can also use built-in agents: "general-purpose", "Explore", "Plan", "Bash". Set the model parameter to "haiku", "sonnet", or "opus" for tier routing.
+${ASK_USER_INSTRUCTION}
+
+=== SKILL INSTRUCTIONS ===
+${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSkillPatterns()}` : ''}`,
+    } : {}),
+  };
+
+  if (resumeSessionId) {
+    options.resume = resumeSessionId;
+  }
+
+  // Payload size diagnostics (Windows 32KB CLI limit)
+  const agentsSize = options.agents ? JSON.stringify(options.agents).length : 0;
+  const promptSize = typeof options.appendSystemPrompt === 'string' ? (options.appendSystemPrompt as string).length : 0;
+  console.log(`[SDK] Payload: agents=${agentsSize}B, systemPrompt=${promptSize}B, total=${agentsSize + promptSize}B`);
+
+  try {
+    await initLog(dmapProjectDir, skillName);
+    await log('options', { model: options.model, maxTurns: options.maxTurns, resumeSessionId, disallowedTools: options.disallowedTools, hasAppendSystemPrompt: !!options.appendSystemPrompt, omcAgentCount: omcAgents ? Object.keys(omcAgents).length : 0, payloadBytes: agentsSize + promptSize });
+
+    const isEnglish = lang && lang !== 'ko';
+
+    // Build file attachment suffix
+    let fileAttachment = '';
+    if (filePaths && filePaths.length > 0) {
+      const fileList = filePaths.map((f) => `- ${f}`).join('\n');
+      fileAttachment = isEnglish
+        ? `\n\nAttached files:\n${fileList}\n\nRead the above files using the Read tool and refer to their contents.`
+        : `\n\n첨부 파일:\n${fileList}\n\n위 파일들을 Read 도구로 읽어서 참고하세요.`;
+    }
+
+    let currentPrompt: string;
+    if (resumeSessionId && input) {
+      currentPrompt = isEnglish ? `${input}\n\nRespond in English.` : input;
+      currentPrompt += fileAttachment;
+      console.log(`[SDK] Resuming session with user input for "${skillName}"`);
+    } else {
+      currentPrompt = input
+        ? (isEnglish
+          ? `User input: ${input}\n\nExecute the skill instructions in the system prompt, referring to the input above. Respond in English.`
+          : `사용자 입력: ${input}\n\n위 입력을 참고하여 시스템 프롬프트의 스킬 지시사항을 실행하세요.`)
+        : (isEnglish
+          ? `Execute the skill instructions in the system prompt. Respond in English.`
+          : `시스템 프롬프트의 스킬 지시사항을 실행하세요.`);
+      currentPrompt += fileAttachment;
+      console.log(`[SDK] Prompt: ${currentPrompt}`);
+    }
+
+    let sdkSessionId = resumeSessionId;
+
+    let currentActiveStep = 1;
+    const trackingCallbacks: StreamCallbacks = parsedSkillSteps
+      ? {
+          onEvent: (event) => {
+            callbacks.onEvent(event);
+            if (event.type === 'text' && 'text' in event) {
+              const detected = detectStepFromText((event as any).text, parsedSkillSteps.isPhaseMode);
+              if (detected && detected > currentActiveStep && detected <= parsedSkillSteps.steps.length) {
+                currentActiveStep = detected;
+                callbacks.onEvent({ type: 'progress', activeStep: currentActiveStep });
+              }
+            }
+          },
+          onSessionId: callbacks.onSessionId,
+        }
+      : callbacks;
+
+    // Loop to handle AskUserQuestion interactions
+    while (true) {
+      const opts: Record<string, unknown> = { ...options };
+      if (sdkSessionId) opts.resume = sdkSessionId;
+
+      const result = await runQuery(currentPrompt, opts, trackingCallbacks);
+      sdkSessionId = result.sdkSessionId || sdkSessionId;
+
+      // Update SDK session ID for future resume
+      if (sdkSessionId) {
+        callbacks.onSessionId?.(sdkSessionId);
+      }
+
+      // Send structured questions if detected
+      if (result.pendingQuestions && result.pendingQuestions.questions.length > 0) {
+        callbacks.onEvent({
+          type: 'questions',
+          title: result.pendingQuestions.title,
+          questions: result.pendingQuestions.questions,
+        });
+      }
+
+      // Handle AskUserQuestion tool call
+      if (result.askUserQuestion) {
+        const questions = result.askUserQuestion.questions;
+        const firstQ = questions[0];
+
+        if (firstQ) {
+          callbacks.onEvent({
+            type: 'approval',
+            id: result.askUserQuestion.toolUseId,
+            sessionId: webSessionId,
+            question: firstQ.question || '',
+            options: (firstQ.options || []).map((o: any) => ({
+              label: o.label,
+              description: o.description,
+            })),
+          });
+
+          console.log(`[SDK] Waiting for user response...`);
+          const userResponse = await waitForUserResponse();
+          console.log(`[SDK] User responded: ${userResponse}`);
+
+          currentPrompt = isEnglish
+            ? `The user answered: "${userResponse}"\nContinue executing the skill based on this answer. Respond in English.`
+            : `사용자가 질문에 다음과 같이 답변했습니다: "${userResponse}"\n이 답변을 반영하여 스킬 실행을 계속하세요.`;
+          continue;
+        }
+      }
+
+      // No askUserQuestion and no pendingQuestions → skill fully complete
+      const fullyComplete = !result.pendingQuestions || result.pendingQuestions.questions.length === 0;
+      console.log(`[SDK] Skill execution completed (fullyComplete=${fullyComplete})`);
+
+      // Mark all progress steps as complete when skill finishes
+      if (parsedSkillSteps && fullyComplete) {
+        callbacks.onEvent({ type: 'progress', activeStep: parsedSkillSteps.steps.length + 1 });
+      }
+
+      return { fullyComplete };
+    }
+  } catch (error: any) {
+    console.error(`[SDK] Error:`, error);
+    callbacks.onEvent({
+      type: 'error',
+      message: error.message || 'Claude SDK execution failed',
+    });
+    return { fullyComplete: true };
+  }
+}

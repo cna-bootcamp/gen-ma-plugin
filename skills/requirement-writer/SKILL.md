@@ -163,11 +163,11 @@ AskUserQuestion 도구를 활용하여 필수 항목을 순차 수집함.
 
 | 상황 | 대응 |
 |------|------|
-| `output/` 디렉토리 미존재 | 자동 생성 후 진행 |
-| `output/requirement-{플러그인명}.md` 이미 존재 | AskUserQuestion으로 덮어쓰기 여부 확인 |
+| `{dmap 프로젝트}/output/` 디렉토리 미존재 | 자동 생성 후 진행 |
+| `{dmap 프로젝트}/output/requirement-{플러그인명}.md` 이미 존재 | AskUserQuestion으로 덮어쓰기 여부 확인 |
 | 필수 항목 입력이 불완전 | 부족한 항목을 구체적으로 안내하고 재질문 |
 | `plugin-resources.md`에 매칭 자원 없음 | "해당 자원 없음" 명시 + 유사 자원 참고 제안 |
-| 인터뷰 중 취소 요청 | 수집된 내용을 `output/requirement-draft.md`에 임시 저장 후 안내 |
+| 인터뷰 중 취소 요청 | 수집된 내용을 `{dmap 프로젝트}/output/requirement-draft.md`에 임시 저장 후 안내 |
 
 [Top](#requirement-writer)
 
@@ -226,7 +226,7 @@ AskUserQuestion 도구를 활용하여 필수 항목을 순차 수집함.
 - [ ] `plugin-dev-guide.md` 참조 경로가 정확한가
 - [ ] `plugin-resources.md` 참조 경로가 정확한가
 - [ ] 에이전트 구성 힌트 추천에 4-Tier 모델 참조가 포함되는가
-- [ ] 출력 파일 경로(`output/requirement-{플러그인명}.md`)가 명시되어 있는가
+- [ ] 출력 파일 경로(`{dmap 프로젝트}/output/requirement-{플러그인명}.md`)가 명시되어 있는가
 - [ ] 에러 처리(디렉토리 미존재, 파일 중복, 불완전 입력) 대응이 있는가
 
 [Top](#requirement-writer)
