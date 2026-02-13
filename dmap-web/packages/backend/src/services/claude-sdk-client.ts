@@ -30,10 +30,6 @@ export interface StreamCallbacks {
 interface RunQueryResult {
   hasContent: boolean;
   sdkSessionId?: string;
-  askUserQuestion?: {
-    toolUseId: string;
-    questions: any[];
-  };
   pendingQuestions?: {
     title: string;
     questions: QuestionItem[];
@@ -106,8 +102,12 @@ function extractAskUserBlocks(text: string): { cleanText: string; title: string;
 }
 
 const ASK_USER_INSTRUCTION = `
-IMPORTANT: When you need to ask the user questions or collect input, you MUST output them in this exact format instead of plain text questions.
-CRITICAL: Put ALL questions in a SINGLE <!--ASK_USER--> block. Do NOT use multiple blocks.
+CRITICAL INSTRUCTION - USER INTERACTION FORMAT:
+You do NOT have access to the AskUserQuestion tool. It is disabled in this environment.
+When you need to ask the user questions or collect input, you MUST use the following HTML comment format.
+Do NOT write questions as plain text. Do NOT use numbered lists for questions. ALWAYS wrap questions in the <!--ASK_USER--> block.
+
+FORMAT (use exactly this structure):
 <!--ASK_USER-->
 {"title":"섹션 제목","questions":[
   {"question":"자유 입력 질문","description":"상세 설명","type":"text","suggestion":"제안값","example":"예시값"},
@@ -115,16 +115,19 @@ CRITICAL: Put ALL questions in a SINGLE <!--ASK_USER--> block. Do NOT use multip
   {"question":"복수 선택 가능","description":"설명","type":"checkbox","options":["항목1","항목2","항목3"]}
 ]}
 <!--/ASK_USER-->
+
 Rules:
+- CRITICAL: Put ALL questions in a SINGLE <!--ASK_USER--> block. Do NOT use multiple blocks.
+- CRITICAL: Do NOT ask questions as plain text. ALWAYS use the <!--ASK_USER--> format above.
+- CRITICAL: Do NOT use the AskUserQuestion tool. It will fail. Use ONLY the <!--ASK_USER--> format.
 - type "text": free text input. Use ONLY when the answer is completely open-ended with no predictable options (e.g., project name, free description).
 - type "radio": single selection. Use when only ONE choice allowed from a known set.
 - type "checkbox": multiple selection. Use when MULTIPLE choices allowed from a known set.
-- PREFER radio/checkbox over text whenever you can enumerate reasonable options. For example:
-  - Target users, categories, formats, regions, features → checkbox or radio with options
-  - Names, descriptions, custom specifications → text
+- PREFER radio/checkbox over text whenever you can enumerate reasonable options.
 - "suggestion" sets default value for text fields, "example" sets placeholder hint.
 - Do NOT add "직접 지정", "직접 입력", or "기타" options. The UI adds a custom input field automatically.
-- Output your explanation text normally before the JSON block. Do NOT use numbered plain text questions.`;
+- Output your explanation text normally before the JSON block. Do NOT use numbered plain text questions.
+- If you need to ask even ONE question, use this format. No exceptions.`;
 
 async function runQuery(
   prompt: string,
@@ -179,16 +182,34 @@ async function runQuery(
             }
           } else if (block.type === 'tool_use') {
             if (block.name === 'AskUserQuestion') {
-              console.log(`[SDK] AskUserQuestion detected, aborting for user input`);
+              // AskUserQuestion detected - abort is REQUIRED to prevent CLI deadlock
+              // (CLI waits for tool_result indefinitely without abort)
+              console.warn(`[SDK] AskUserQuestion tool detected. Aborting and converting to pendingQuestions.`);
+              await log('askUserQuestion_converted', block.input);
+
+              // Convert AskUserQuestion data to pendingQuestions format
+              const askQuestions = block.input?.questions || [];
+              if (askQuestions.length > 0) {
+                pendingQuestions = {
+                  title: askQuestions[0]?.question || '질문',
+                  questions: askQuestions.map((q: any) => ({
+                    question: q.question || '',
+                    description: q.description || '',
+                    type: q.options ? 'radio' as const : 'text' as const,
+                    options: (q.options || []).map((o: any) =>
+                      typeof o === 'string' ? o : o.label || ''
+                    ),
+                    suggestion: '',
+                    example: '',
+                  })),
+                };
+              }
+
               abortController.abort();
-              return {
-                hasContent,
-                sdkSessionId,
-                askUserQuestion: {
-                  toolUseId: block.id,
-                  questions: block.input?.questions || [],
-                },
-              };
+              // Return with pendingQuestions (NOT askUserQuestion) so executeSkill
+              // routes through the working path (QuestionFormDialog) instead of
+              // the broken path (ApprovalDialog + waitForUserResponse)
+              return { hasContent, sdkSessionId, pendingQuestions };
             }
             // Emit agent event for Task delegations
             if (block.name === 'Task') {
@@ -278,8 +299,6 @@ export async function executeSkill(
   dmapProjectDir: string,
   lang: string | undefined,
   callbacks: StreamCallbacks,
-  waitForUserResponse: () => Promise<string>,
-  webSessionId: string,
   resumeSessionId?: string,
   pluginId?: string,
   filePaths?: string[],
@@ -377,10 +396,21 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
 
     let currentPrompt: string;
     if (resumeSessionId && input) {
+      // Resume with user's answer
       currentPrompt = isEnglish ? `${input}\n\nRespond in English.` : input;
       currentPrompt += fileAttachment;
       console.log(`[SDK] Resuming session with user input for "${skillName}"`);
+    } else if (resumeSessionId) {
+      // Resume without explicit user input - provide continuation instruction
+      // IMPORTANT: Generic "execute skill" prompt causes model to think work is done.
+      // Must use explicit continuation instruction. (Architect verified across 3 log files)
+      currentPrompt = isEnglish
+        ? 'The previous session was interrupted. Continue executing the skill from where you left off. Do not repeat completed work. Respond in English.'
+        : '이전 세션이 중단되었습니다. 중단된 지점부터 스킬 실행을 이어서 계속하세요. 이미 완료된 작업은 반복하지 마세요.';
+      currentPrompt += fileAttachment;
+      console.log(`[SDK] Resuming session without user input for "${skillName}" - using continuation prompt`);
     } else {
+      // Fresh start
       currentPrompt = input
         ? (isEnglish
           ? `User input: ${input}\n\nExecute the skill instructions in the system prompt, referring to the input above. Respond in English.`
@@ -433,33 +463,6 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
         });
       }
 
-      // Handle AskUserQuestion tool call
-      if (result.askUserQuestion) {
-        const questions = result.askUserQuestion.questions;
-        const firstQ = questions[0];
-
-        if (firstQ) {
-          callbacks.onEvent({
-            type: 'approval',
-            id: result.askUserQuestion.toolUseId,
-            sessionId: webSessionId,
-            question: firstQ.question || '',
-            options: (firstQ.options || []).map((o: any) => ({
-              label: o.label,
-              description: o.description,
-            })),
-          });
-
-          console.log(`[SDK] Waiting for user response...`);
-          const userResponse = await waitForUserResponse();
-          console.log(`[SDK] User responded: ${userResponse}`);
-
-          currentPrompt = isEnglish
-            ? `The user answered: "${userResponse}"\nContinue executing the skill based on this answer. Respond in English.`
-            : `사용자가 질문에 다음과 같이 답변했습니다: "${userResponse}"\n이 답변을 반영하여 스킬 실행을 계속하세요.`;
-          continue;
-        }
-      }
 
       // No askUserQuestion and no pendingQuestions → skill fully complete
       const fullyComplete = !result.pendingQuestions || result.pendingQuestions.questions.length === 0;

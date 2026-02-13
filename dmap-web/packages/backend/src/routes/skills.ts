@@ -138,15 +138,13 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
           sessionManager.updateSdkSessionId(session.id, sdkSessionId);
         },
       },
-      () => sessionManager.waitForUserResponse(session.id),
-      session.id,
       session.sdkSessionId,
       pluginId,
       filePaths,
     );
 
     sendSSE(res, { type: 'complete', sessionId: session.id, fullyComplete: result.fullyComplete });
-    sessionManager.setStatus(session.id, 'completed');
+    sessionManager.setStatus(session.id, result.fullyComplete ? 'completed' : 'waiting');
   } catch (error: any) {
     sendSSE(res, {
       type: 'error',
