@@ -4,17 +4,44 @@
   - [개요](#개요)
   - [리소스 디렉토리 구조](#리소스-디렉토리-구조)
   - [가이드 추가](#가이드-추가)
+    - [단계 1. 파일 배치](#단계-1-파일-배치)
+    - [단계 2. 가이드 문서 작성](#단계-2-가이드-문서-작성)
+    - [단계 3. 카탈로그 등록](#단계-3-카탈로그-등록)
   - [템플릿 추가](#템플릿-추가)
+    - [단계 1. 파일 배치](#단계-1-파일-배치-1)
+    - [단계 2. 카탈로그 등록](#단계-2-카탈로그-등록)
   - [샘플 추가](#샘플-추가)
+    - [단계 1. 파일 배치](#단계-1-파일-배치-2)
+    - [단계 2. 카탈로그 등록](#단계-2-카탈로그-등록-1)
   - [플러그인 명세서 추가](#플러그인-명세서-추가)
+    - [단계 1. 명세서 자동 생성](#단계-1-명세서-자동-생성)
+    - [단계 2. 카탈로그 등록](#단계-2-카탈로그-등록-2)
   - [커스텀 도구 추가](#커스텀-도구-추가)
     - [커스텀 앱 추가](#커스텀-앱-추가)
+      - [단계 1. 소스 배치](#단계-1-소스-배치)
+      - [단계 2. 툴 가이드 작성](#단계-2-툴-가이드-작성)
+      - [단계 3. 카탈로그 등록](#단계-3-카탈로그-등록-1)
     - [커스텀 CLI 추가](#커스텀-cli-추가)
+      - [단계 1. 소스 배치](#단계-1-소스-배치-1)
+      - [단계 2. 툴 가이드 작성](#단계-2-툴-가이드-작성-1)
+      - [단계 3. 카탈로그 등록](#단계-3-카탈로그-등록-2)
     - [MCP 서버 추가](#mcp-서버-추가)
-  - [실전 예시: generate_image 도구 등록](#실전-예시-generate_image-도구-등록)
+      - [단계 1. 소스 배치](#단계-1-소스-배치-2)
+      - [단계 2. 툴 가이드 작성](#단계-2-툴-가이드-작성-2)
+      - [단계 3. 카탈로그 등록](#단계-3-카탈로그-등록-3)
+  - [실전 예시: generate\_image 도구 등록](#실전-예시-generate_image-도구-등록)
+    - [단계 1. 소스 배치](#단계-1-소스-배치-3)
+    - [단계 2. 툴 가이드 작성](#단계-2-툴-가이드-작성-3)
+    - [단계 3. 카탈로그 등록](#단계-3-카탈로그-등록-4)
   - [검증 체크리스트](#검증-체크리스트)
+    - [공통 체크리스트 (모든 리소스 유형)](#공통-체크리스트-모든-리소스-유형)
+    - [커스텀 도구 추가 체크리스트](#커스텀-도구-추가-체크리스트)
+    - [플러그인 명세서 추가 체크리스트](#플러그인-명세서-추가-체크리스트)
   - [부록 A. 마크다운 작성 규칙](#부록-a-마크다운-작성-규칙)
   - [부록 B. AI 활용 프롬프트](#부록-b-ai-활용-프롬프트)
+    - [툴](#툴)
+    - [가이드/템플릿/샘플 등록 프롬프트](#가이드템플릿샘플-등록-프롬프트)
+    - [플러그인](#플러그인)
 
 ---
 
@@ -808,95 +835,98 @@ AI가 마크다운 작성 규칙을 자동으로 준수함.
 
 ## 부록 B. AI 활용 프롬프트
 
-툴 가이드 작성과 카탈로그 등록을 AI에게 맡기면 템플릿 준수, 컬럼 구조, 정렬 등의 실수를 방지할 수 있음.
+툴, 가이드/템플릿/샘플, 플러그인의 가이드 작성과 카탈로그 등록을 AI에게 맡기면   
+템플릿 준수, 컬럼 구조, 정렬 등의 실수를 방지할 수 있음.  
 아래 프롬프트를 AI에게 전달하면 소스 코드를 읽고 자동으로 처리함.
 
-### 툴 가이드 작성 프롬프트
-
+### 툴  
+**1.가이드 작성**      
 ````
-'{소스 파일 경로}'를 읽고 resources/tools/{tool-name}.md에
-{카테고리} 툴 가이드를 작성해줘.
-템플릿은 resources/guides/plugin/resource-contribution-guide.md의
-'{카테고리} 툴 가이드 템플릿'을 따라줘.
+- 소스파일 경로: {소스파일 경로}
+- 툴이름: {툴이름}
+- '{소스파일 경로}'를 읽고 resources/tools/{툴이름}.md에 커스텀 앱 툴 가이드 작성
+- 템플릿은 resources/guides/plugin/resource-contribution-guide.md의 '커스텀 앱 툴 가이드 템플릿' 준용
 ````
 
 **사용 예시:**
+````
+- 소스파일 경로: ~/workplace/dmap/resources/tools/customs/general/generate_image.py
+- 툴이름: generate_image
+- '{소스파일 경로}'를 읽고 resources/tools/{툴이름}.md에 커스텀 앱 툴 가이드 작성
+- 템플릿은 resources/guides/plugin/resource-contribution-guide.md의 '커스텀 앱 툴 가이드 템플릿' 준용
+````
 
+**2.카탈로그 등록**   
 ````
-'resources/tools/customs/general/generate_image.py'를 읽고
-resources/tools/generate-image.md에 커스텀 앱 툴 가이드를 작성해줘.
-템플릿은 resources/guides/plugin/resource-contribution-guide.md의
-'커스텀 앱 툴 가이드 템플릿'을 따라줘.
+- 툴이름: {툴이름}
+- resources/plugin-resources.md 파일의 "도구 목록" 테이블에 'resources/tools/{툴이름}.md' 등록
+- 카테고리: {MCP 서버 | 커스텀 앱 | 커스텀 CLI}
+- 설명은 내용을 보고 적절히 생성
 ````
+
+**사용 예시:**
+````
+- 툴이름: generate_image
+- resources/plugin-resources.md 파일의 "도구 목록" 테이블에 'resources/tools/{툴이름}.md' 등록
+- 카테고리: {MCP 서버 | 커스텀 앱 | 커스텀 CLI}
+- 설명은 내용을 보고 적절히 생성
+````
+
 
 ### 가이드/템플릿/샘플 등록 프롬프트
+**1.가이드 작성**    
+사전에 resources/{guides|templates|sampels}/{분류}/ 디렉토리 밑에 파일 생성 후 수행  
 
+**2.카탈로그 등록**     
 ````
-resources/plugin-resources.md 파일의 "{유형} 목록" 테이블에
-'{파일 경로}'를 등록해줘.
-설명은 내용을 보고 적절히 생성해줘.
-````
-
-**사용 예시:**
-
-````
-resources/plugin-resources.md 파일의 "가이드 목록" 테이블에
-'resources/guides/plugin/resource-contribution-guide.md'를 등록해줘.
-설명은 내용을 보고 적절히 생성해줘.
-````
-
-### 커스텀 도구 등록 프롬프트
-
-````
-resources/plugin-resources.md 파일의 "도구 목록" 테이블에
-'{툴 가이드 경로}'를 등록해줘.
-카테고리는 {MCP 서버 | 커스텀 앱 | 커스텀 CLI}이고,
-설명은 내용을 보고 적절히 생성해줘.
+- 파일경로: resources/guides/plugin/resource-contribution-guide.md
+- {파일경로}의 파일을 읽어 resources/plugin-resources.md 등록 
+- 리소스 유형은 디렉토리를 보고 판단
+- 설명은 내용을 보고 적절히 생성
 ````
 
 **사용 예시:**
 
 ````
-resources/plugin-resources.md 파일의 "도구 목록" 테이블에
-'resources/tools/generate-image.md'를 등록해줘.
-카테고리는 커스텀 앱이고,
-설명은 내용을 보고 적절히 생성해줘.
+- 파일경로: resources/guides/plugin/resource-contribution-guide.md
+- {파일경로}의 파일을 읽어 resources/plugin-resources.md 등록 
+- 리소스 유형은 디렉토리를 보고 판단
+- 설명은 내용을 보고 적절히 생성
 ````
-
-### 플러그인 명세서 작성 프롬프트
-
+  
+### 플러그인 
+**1.명세서 작성**   
 ````
-'{대상 플러그인 디렉토리}'의 README.md, .claude-plugin/plugin.json,
-skills/help/SKILL.md, skills/core/SKILL.md, skills/*/SKILL.md를 읽고
-resources/plugins/{2차분류}/{plugin-name}.md에 플러그인 명세서를 작성해줘.
-템플릿은 resources/guides/plugin/resource-contribution-guide.md의
-'명세서 필수 7개 섹션'을 따라줘.
-````
-
-**사용 예시:**
-
-````
-'~/workspace/abra'의 README.md, .claude-plugin/plugin.json,
-skills/help/SKILL.md, skills/core/SKILL.md, skills/*/SKILL.md를 읽고
-resources/plugins/ai-agent/abra.md에 플러그인 명세서를 작성해줘.
-템플릿은 resources/guides/plugin/resource-contribution-guide.md의
-'명세서 필수 7개 섹션'을 따라줘.
-````
-
-### 플러그인 등록 프롬프트
-
-````
-resources/plugin-resources.md 파일의 "플러그인 목록" 테이블에
-'{명세서 경로}'를 등록해줘.
-설명은 내용을 보고 적절히 생성해줘.
+- 플러그인 디렉토리: {플러그인 디렉토리}
+- {플러그인 디렉토리}의 README.md, .claude-plugin/plugin.json,   
+  skills/help/SKILL.md, skills/core/SKILL.md, skills/*/SKILL.md 파악
+- 'resources/guides/plugin/resource-contribution-guide.md' 템플릿의   
+  '명세서 필수 7개 섹션'을 따라 플러그인 명세서 작성 
 ````
 
 **사용 예시:**
 
 ````
-resources/plugin-resources.md 파일의 "플러그인 목록" 테이블에
-'resources/plugins/ai-agent/abra.md'를 등록해줘.
-설명은 내용을 보고 적절히 생성해줘.
+- 플러그인 디렉토리: '~/workspace/abra'
+- {플러그인 디렉토리}의 README.md, .claude-plugin/plugin.json,   
+  skills/help/SKILL.md, skills/core/SKILL.md, skills/*/SKILL.md 파악
+- 'resources/guides/plugin/resource-contribution-guide.md' 템플릿의   
+  '명세서 필수 7개 섹션'을 따라 플러그인 명세서 작성 
+````
+
+**2.카탈로그 등록**    
+````
+- 플러그인명: {플러그인명}
+- resources/plugin-resources.md 파일의 "플러그인 목록" 테이블에 'resources/plugins/{플러그인명}.md' 등록
+- 설명은 내용을 보고 적절히 생성
+````
+
+**사용 예시:**
+
+````
+- 플러그인명: abra
+- resources/plugin-resources.md 파일의 "플러그인 목록" 테이블에 'resources/plugins/{플러그인명}.md' 등록
+- 설명은 내용을 보고 적절히 생성
 ````
 
 [Top](#리소스-마켓플레이스-기여-가이드)
