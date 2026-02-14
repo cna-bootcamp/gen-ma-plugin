@@ -229,14 +229,15 @@ AI가 작업별로 로드할 문서를 정의함. 이미 로드한 문서는 재
 | # | 규칙 | 근거 |
 |---|------|------|
 | 1 | 모든 플러그인은 `.claude-plugin/plugin.json`과 `.claude-plugin/marketplace.json` 포함 | 런타임 인식 진입점 및 배포 메타데이터 |
-| 2 | 모든 에이전트는 AGENT.md(프롬프트) + agentcard.yaml(메타데이터) 쌍으로 구성 | 프롬프트/메타데이터 분리 |
-| 3 | tier는 HEAVY / HIGH / MEDIUM / LOW 중 하나만 사용 | 런타임 매핑 표준 |
-| 4 | 위임형 스킬(Core, Planning, Orchestrator)은 라우팅+오케스트레이션만 수행, 작업 실행은 에이전트에 위임. 직결형 스킬(Setup, Utility)은 Gateway 직접 사용 허용 | 관심사 분리 + 실용성 |
-| 5 | Skill→Agent 위임은 Task 도구, Skill→Skill 위임은 Skill 도구 사용 | 위임 메커니즘 구분 |
-| 6 | 추상 선언(tools.yaml)과 구체 매핑(runtime-mapping.yaml) 분리 | Dependency Inversion |
-| 7 | 스킬 네임스페이스는 `{plugin-name}:{skill-name}` 형식 | 충돌 방지 |
-| 8 | `/{plugin-name}:{skill-name}` 형식의 진입점 위해 커맨드 생성 | 슬래시 명령 노출 |
-| 9 | AGENT.md에 도구 명세 금지 — tools.yaml에 분리 | 프롬프트/도구 분리 |
+| 2 | .claude-plugin/marketplace.json, .claude-plugin/plugin.json을 참조하여 작성 | 런타임 인식 진입점 및 배포 메타데이터 |
+| 3 | 모든 에이전트는 AGENT.md(프롬프트) + agentcard.yaml(메타데이터) 쌍으로 구성 | 프롬프트/메타데이터 분리 |
+| 4 | tier는 HEAVY / HIGH / MEDIUM / LOW 중 하나만 사용 | 런타임 매핑 표준 |
+| 5 | 위임형 스킬(Core, Planning, Orchestrator)은 라우팅+오케스트레이션만 수행, 작업 실행은 에이전트에 위임. 직결형 스킬(Setup, Utility)은 Gateway 직접 사용 허용 | 관심사 분리 + 실용성 |
+| 6 | Skill→Agent 위임은 Task 도구, Skill→Skill 위임은 Skill 도구 사용 | 위임 메커니즘 구분 |
+| 7 | 추상 선언(tools.yaml)과 구체 매핑(runtime-mapping.yaml) 분리 | Dependency Inversion |
+| 8 | 스킬 네임스페이스는 `{plugin-name}:{skill-name}` 형식 | 충돌 방지 |
+| 9 | `/{plugin-name}:{skill-name}` 형식의 진입점 위해 커맨드 생성 | 슬래시 명령 노출 |
+| 10 | AGENT.md에 도구 명세 금지 — tools.yaml에 분리 | 프롬프트/도구 분리 |
 
 ### MUST NOT 규칙
 
