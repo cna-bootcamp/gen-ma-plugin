@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../stores/appStore.js';
 import { useT } from '../i18n/index.js';
 import { useLangStore } from '../stores/langStore.js';
-import type { PluginInfo } from '@dmap-web/shared';
+import type { PluginInfo, SkillMeta } from '@dmap-web/shared';
 
 interface PluginSwitcherProps {
   disabled?: boolean;
@@ -27,15 +27,30 @@ export function PluginSwitcher({ disabled }: PluginSwitcherProps) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  const handleSelect = (plugin: PluginInfo) => {
+  const handleSelect = async (plugin: PluginInfo) => {
     if (plugin.id === selectedPlugin?.id) {
       setOpen(false);
       return;
     }
     selectPlugin(plugin);
     setOpen(false);
+
     // Fetch skills for the new plugin
-    setTimeout(() => fetchSkills(), 0);
+    const fetchedSkills = await new Promise<SkillMeta[]>((resolve) => {
+      setTimeout(async () => {
+        await fetchSkills();
+        resolve(useAppStore.getState().skills);
+      }, 0);
+    });
+
+    // Setup guard: if setup not completed, auto-select setup skill and show toast
+    if (!plugin.setupCompleted) {
+      const setupSkill = fetchedSkills.find((s) => s.name === 'setup');
+      if (setupSkill) {
+        useAppStore.getState().selectSkill(setupSkill);
+        useAppStore.getState().showToast(t('setup.required'));
+      }
+    }
   };
 
   const handleRemoveClick = (e: React.MouseEvent, pluginId: string) => {

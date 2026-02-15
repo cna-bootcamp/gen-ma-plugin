@@ -348,6 +348,7 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 | 슬래시 명령 | `commands/` 진입점 파일 존재 |
 | 도구 매핑 | `tools.yaml`의 추상 도구가 `runtime-mapping.yaml`에 매핑 |
 | 티어 매핑 | `agentcard.yaml`의 tier가 `runtime-mapping.yaml`에 매핑 |
+| 오케스트레이션 구조 | 스킬이 에이전트에 위임하고, 에이전트가 다른 에이전트를 호출하는 구조가 아닌지 확인 |
 | README | 필수 섹션(개요, 설치, 업그레이드, 사용법, 요구사항, 라이선스) 포함 |
 | 스킬 공통 섹션 | 모든 SKILL.md에 `## MUST 규칙`, `## MUST NOT 규칙`, `## 검증 체크리스트` 존재 |
 

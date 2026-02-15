@@ -41,7 +41,8 @@ const ASK_USER_REGEX_G = /<!--ASK_USER-->\s*([\s\S]*?)\s*<!--\/ASK_USER-->/g;
 
 function parseSkillSteps(skillContent: string): { steps: Array<{ step: number; label: string }>; isPhaseMode: boolean } | null {
   // Try Phase pattern first (higher-level grouping like develop-plugin)
-  const phasePattern = /^###\s+Phase\s+(\d+)[:.]\s*(.+)$/gm;
+  // Support both ### and #### headings
+  const phasePattern = /^#{3,4}\s+Phase\s+(\d+)[:.]\s*(.+)$/gm;
   let matches = [...skillContent.matchAll(phasePattern)];
   if (matches.length >= 2) {
     return {
@@ -54,7 +55,7 @@ function parseSkillSteps(skillContent: string): { steps: Array<{ step: number; l
   }
 
   // Try Step pattern (like team-planner, publish)
-  const stepPattern = /^###\s+Step\s+(\d+)[:.]\s*(.+)$/gm;
+  const stepPattern = /^#{3,4}\s+Step\s+(\d+)[:.]\s*(.+)$/gm;
   matches = [...skillContent.matchAll(stepPattern)];
   if (matches.length >= 2) {
     return {

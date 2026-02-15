@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllPlugins, addPlugin, removePlugin, validatePluginDir, resolveProjectDir } from '../services/plugin-manager.js';
+import { getAllPlugins, addPlugin, removePlugin, validatePluginDir, resolveProjectDir, isSetupCompleted } from '../services/plugin-manager.js';
 import { syncPluginAgents, removeRegisteredAgents } from '../services/agent-registry.js';
 
 export const pluginsRouter = Router();
@@ -8,7 +8,14 @@ export const pluginsRouter = Router();
 pluginsRouter.get('/', async (_req, res) => {
   try {
     const plugins = await getAllPlugins();
-    res.json(plugins);
+    // Inject setupCompleted flag for each plugin
+    const enriched = await Promise.all(
+      plugins.map(async (p, i) => ({
+        ...p,
+        setupCompleted: i === 0 ? true : await isSetupCompleted(p.projectDir),
+      })),
+    );
+    res.json(enriched);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

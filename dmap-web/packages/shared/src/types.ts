@@ -182,6 +182,7 @@ export interface PluginInfo {
   description: string;
   version: string;
   projectDir: string;
+  setupCompleted?: boolean;
 }
 
 // API Request/Response

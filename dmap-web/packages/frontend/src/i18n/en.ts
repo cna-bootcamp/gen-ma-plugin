@@ -200,6 +200,9 @@ const en: Translations = {
   'switchDialog.message': 'The running skill will be interrupted. Switch?',
   'switchDialog.confirm': 'Switch',
   'switchDialog.cancel': 'Cancel',
+
+  // Setup Guard
+  'setup.required': 'Plugin initial setup is required before use.',
 };
 
 export default en;

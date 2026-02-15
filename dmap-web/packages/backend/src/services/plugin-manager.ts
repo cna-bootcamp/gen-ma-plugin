@@ -1,4 +1,4 @@
-import { readFile, writeFile, access } from 'fs/promises';
+import { readFile, writeFile, access, mkdir } from 'fs/promises';
 import path from 'path';
 import { DMAP_PROJECT_DIR, DATA_DIR } from '../config.js';
 import type { PluginInfo } from '@dmap-web/shared';
@@ -169,4 +169,21 @@ export async function resolveProjectDir(pluginId?: string): Promise<string> {
   const plugins = await getAllPlugins();
   const plugin = plugins.find((p) => p.id === pluginId);
   return plugin?.projectDir || DMAP_PROJECT_DIR;
+}
+
+// Check if plugin setup has been completed
+export async function isSetupCompleted(projectDir: string): Promise<boolean> {
+  try {
+    await access(path.join(projectDir, '.dmap', 'setup-completed'));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Mark plugin setup as completed
+export async function markSetupCompleted(projectDir: string): Promise<void> {
+  const dmapDir = path.join(projectDir, '.dmap');
+  await mkdir(dmapDir, { recursive: true });
+  await writeFile(path.join(dmapDir, 'setup-completed'), new Date().toISOString(), 'utf-8');
 }

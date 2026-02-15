@@ -5,7 +5,7 @@ import { sessionManager } from '../services/session-manager.js';
 import { executeSkill, executePrompt } from '../services/claude-sdk-client.js';
 import { initSSE, sendSSE, endSSE } from '../middleware/sse-handler.js';
 import { DMAP_PROJECT_DIR } from '../config.js';
-import { resolveProjectDir } from '../services/plugin-manager.js';
+import { resolveProjectDir, markSetupCompleted } from '../services/plugin-manager.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -295,6 +295,10 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
     if (!abortController.signal.aborted) {
       sendSSE(res, { type: 'complete', sessionId: session.id, fullyComplete: result.fullyComplete });
       sessionManager.setStatus(session.id, result.fullyComplete ? 'completed' : 'waiting');
+      // Mark setup as completed when setup skill finishes successfully
+      if (skillName === 'setup' && result.fullyComplete) {
+        markSetupCompleted(dmapProjectDir).catch(() => {});
+      }
     } else if (!chainDetected) {
       sessionManager.abortSession(session.id);
     }

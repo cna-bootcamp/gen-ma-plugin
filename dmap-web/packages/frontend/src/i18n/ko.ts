@@ -200,6 +200,9 @@ const ko: Translations = {
   'switchDialog.message': '현재 실행 중인 스킬이 중단됩니다. 전환하시겠습니까?',
   'switchDialog.confirm': '전환',
   'switchDialog.cancel': '취소',
+
+  // Setup Guard
+  'setup.required': '플러그인 사용 전에 플러그인 초기설정이 반드시 필요합니다.',
 };
 
 export default ko;

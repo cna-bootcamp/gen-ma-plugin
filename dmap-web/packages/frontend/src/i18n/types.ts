@@ -196,4 +196,7 @@ export interface Translations {
   'switchDialog.message': string;
   'switchDialog.confirm': string;
   'switchDialog.cancel': string;
+
+  // Setup Guard
+  'setup.required': string;
 }
