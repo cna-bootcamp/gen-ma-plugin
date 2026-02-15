@@ -59,3 +59,4 @@ develop-agent/examples/graphrag/cache/
 .omc
 .dmap
 
+.dmap/secrets/
