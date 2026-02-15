@@ -51,7 +51,7 @@ const ko: Translations = {
   'about.description1':
     'DMAP(Declarative Multi-Agent Plugin)은 마크다운과 YAML만으로 멀티에이전트 플러그인을 만드는 노코드 빌더입니다.',
   'about.description2':
-    '요구사항 정의서 작성부터 플러그인 개발, GitHub 배포까지 End-to-End 워크플로우를 제공합니다.',
+    '팀 기획서 작성부터 플러그인 개발, GitHub 배포까지 End-to-End 워크플로우를 제공합니다.',
   'about.footer': 'Developed by Unicorn Inc. | MIT License',
 
   // Stream
@@ -81,8 +81,8 @@ const ko: Translations = {
   // Skill names
   'skill.develop-plugin.name': '플러그인 개발',
   'skill.develop-plugin.desc': '4-Phase 워크플로우로 DMAP 플러그인 전체 개발',
-  'skill.requirement-writer.name': '요구사항 작성',
-  'skill.requirement-writer.desc': 'AI 기반 요구사항 정의서 자동 완성',
+  'skill.team-planner.name': '팀 기획서',
+  'skill.team-planner.desc': 'AI 기반 팀 기획서 자동 완성',
   'skill.publish.name': 'GitHub 배포',
   'skill.publish.desc': '개발 완료된 플러그인을 GitHub에 배포',
   'skill.setup.name': '빌더 설정',

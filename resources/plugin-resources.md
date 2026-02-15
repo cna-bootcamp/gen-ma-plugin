@@ -35,7 +35,7 @@
 | github | github-account-setup | GitHub 계정 생성 가이드 (회원가입, 프로필 설정, 2FA) | [상세](guides/github/github-account-setup.md) |
 | github | github-token-guide | Personal Access Token (PAT) 생성 가이드 (권한 설정, 보안) | [상세](guides/github/github-token-guide.md) |
 | github | github-organization-guide | GitHub Organization 생성 가이드 (팀 관리, 멤버 초대) | [상세](guides/github/github-organization-guide.md) |
-| plugin | plugin-dev-guide | DMAP 플러그인 개발 가이드 (요구사항 정의서, 개발 워크플로우) | [상세](guides/plugin/plugin-dev-guide.md) |
+| plugin | plugin-dev-guide | DMAP 플러그인 개발 가이드 (팀 기획서, 개발 워크플로우) | [상세](guides/plugin/plugin-dev-guide.md) |
 | plugin | resource-contribution-guide | 리소스 마켓플레이스에 가이드, 템플릿, 샘플, 커스텀 도구를 추가하는 방법 안내 | [상세](guides/plugin/resource-contribution-guide.md) |
 
 [Top](#리소스-마켓플레이스)
@@ -49,7 +49,7 @@
 | dify | develop-plan-generate | Dify DSL 기반 Agent 개발 계획서 생성 프롬프트 | [상세](templates/dify/develop-plan-generate.md) |
 | dify | dsl-generation-prompt | 요구사항 기반 Dify DSL 생성 표준 프롬프트 | [상세](templates/dify/dsl-generation-prompt.md) |
 | general | develop | 개발 계획서 기반 Agent 개발 프롬프트 | [상세](templates/general/develop.md) |
-| general | requirement-generater | AI 에이전트 요구사항 자동 생성 프롬프트 | [상세](templates/general/requirement-generater.md) |
+| general | team-plan-template | AI 팀 기획서 자동 생성 프롬프트 | [상세](templates/general/team-plan-template.md) |
 | plugin | README-plugin-template | 플러그인 README.md 스켈레톤 | [상세](templates/plugin/README-plugin-template.md) |
 
 [Top](#리소스-마켓플레이스)

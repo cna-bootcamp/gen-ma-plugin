@@ -2,9 +2,9 @@ import type { SkillMeta } from './types.js';
 
 export const DMAP_SKILLS: SkillMeta[] = [
   {
-    name: 'requirement-writer',
-    displayName: '요구사항 작성',
-    description: 'AI 기반 요구사항 정의서 자동 완성',
+    name: 'team-planner',
+    displayName: '팀 기획서',
+    description: 'AI 기반 팀 기획서 자동 완성',
     icon: '📋',
     category: 'core',
     hasApprovalGates: true,

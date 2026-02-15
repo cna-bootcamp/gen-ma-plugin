@@ -77,8 +77,8 @@ export interface Translations {
   // Skill names
   'skill.develop-plugin.name': string;
   'skill.develop-plugin.desc': string;
-  'skill.requirement-writer.name': string;
-  'skill.requirement-writer.desc': string;
+  'skill.team-planner.name': string;
+  'skill.team-planner.desc': string;
   'skill.publish.name': string;
   'skill.publish.desc': string;
   'skill.setup.name': string;

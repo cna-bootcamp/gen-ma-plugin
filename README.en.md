@@ -181,16 +181,16 @@ npm run dev
 
 Open http://localhost:5173 then:
 
-Click 'Write Requirements' to start plugin development
+Click 'Team Planner' to start plugin development
 
 ### Using with Claude Code
 
-Run '/dmap:requirement-writer' to start from requirements writing
+Run '/dmap:team-planner' to start from team plan writing
 
 | Command | Description |
 |---------|-------------|
 | `/dmap:develop-plugin` | Develop a plugin via 4-Phase workflow |
-| `/dmap:requirement-writer` | Requirements specification writing support (AI auto-completion) |
+| `/dmap:team-planner` | Team plan writing support (AI auto-completion) |
 | `/dmap:publish` | Deploy completed plugin to GitHub |
 | `/dmap:add-ext-skill` | Add external skill (ext-{target plugin}) |
 | `/dmap:remove-ext-skill` | Remove external skill (ext-{target plugin}) |
@@ -201,7 +201,7 @@ Basic usage flow:
 
 ```
 1. /dmap:setup                -- Verify installation status
-2. /dmap:requirement-writer   -- Write requirements specification (AI auto-completion)
+2. /dmap:team-planner         -- Write team plan (AI auto-completion)
 3. /dmap:develop-plugin       -- Automatically execute: requirements -> design -> development -> verification
 4. /dmap:publish              -- Deploy to GitHub (repo creation, commit, push)
 ```
@@ -400,17 +400,17 @@ Each AI team freely attaches and detaches external plugins (Plug & Unplug) to ex
 ## Plugin Development Workflow
 
 The entire pipeline from requirements to GitHub deployment is **End-to-End automated**.
-Plugin development starts with `/dmap:requirement-writer` to create the requirements specification,
+Plugin development starts with `/dmap:team-planner` to create the team plan,
 then `/dmap:develop-plugin` automatically executes a 4-Phase workflow,
 and `/dmap:publish` deploys to GitHub. User approval is obtained at each stage.
 
 ```
-/dmap:requirement-writer → /dmap:develop-plugin (Phase 1~4) → /dmap:publish
+/dmap:team-planner → /dmap:develop-plugin (Phase 1~4) → /dmap:publish
 ```
 
 | Phase | Stage | Key Activities |
 |:-----:|-------|---------------|
-| 1 | Requirements Gathering | Analyze requirements specification, assess plugin suitability, collect missing information ([sample](https://github.com/unicorn-plugins/abra/blob/main/output/requirement.md)) |
+| 1 | Requirements Gathering | Analyze team plan, assess plugin suitability, collect missing information ([sample](https://github.com/unicorn-plugins/abra/blob/main/output/requirement.md)) |
 | 2 | Design and Planning | Select shared resources, design plugin structure, write development plan |
 | 3 | Plugin Development | Generate skeleton, develop Gateway/Agent/Skill/Command, write README |
 | 4 | Verification and Completion | Validate DMAP standard compliance, final report, register shared resources (optional) |
@@ -450,7 +450,7 @@ dmap/
 │   └── tools/               #   Tools (custom apps/CLI)
 ├── skills/                  # DMAP Builder skills
 │   ├── develop-plugin/      #   Plugin development (4-Phase)
-│   ├── requirement-writer/  #   Requirements specification writing support
+│   ├── team-planner/        #   Team plan writing support
 │   ├── publish/             #   GitHub deployment
 │   ├── add-ext-skill/       #   External skill add utility
 │   ├── remove-ext-skill/    #   External skill remove utility
@@ -459,7 +459,7 @@ dmap/
 │   └── help/                #   Usage guide
 ├── commands/                # Slash command entry points
 │   ├── develop-plugin.md
-│   ├── requirement-writer.md
+│   ├── team-planner.md
 │   ├── publish.md
 │   ├── add-ext-skill.md
 │   ├── remove-ext-skill.md

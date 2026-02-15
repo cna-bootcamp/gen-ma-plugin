@@ -181,16 +181,16 @@ npm run dev
 
 http://localhost:5173 접속 후:
 
-'요구사항 작성' 클릭하고 플러그인 개발 시작 
+'팀 기획서' 클릭하고 플러그인 개발 시작 
 
 ### Claude Code에서 사용
 
-'/dmap:requirement-writer' 실행하여 요구사항 작성 부터 시작    
+'/dmap:team-planner' 실행하여 팀 기획서 작성 부터 시작    
 
 | 명령 | 설명 |
 |------|------|
 | `/dmap:develop-plugin` | 4-Phase 워크플로우로 플러그인 개발 |
-| `/dmap:requirement-writer` | 요구사항 정의서 작성 지원 (AI 자동 완성) |
+| `/dmap:team-planner` | 팀 기획서 작성 지원 (AI 자동 완성) |
 | `/dmap:publish` | 개발 완료된 플러그인을 GitHub에 배포 |
 | `/dmap:add-ext-skill` | 외부호출 스킬(ext-{대상플러그인}) 추가 |
 | `/dmap:remove-ext-skill` | 외부호출 스킬(ext-{대상플러그인}) 제거 |
@@ -201,7 +201,7 @@ http://localhost:5173 접속 후:
 
 ```
 1. /dmap:setup                -- 설치 상태 검증
-2. /dmap:requirement-writer   -- 요구사항 정의서 작성 (AI 자동 완성)
+2. /dmap:team-planner         -- 팀 기획서 작성 (AI 자동 완성)
 3. /dmap:develop-plugin       -- 요구사항 -> 설계 -> 개발 -> 검증 자동 수행
 4. /dmap:publish              -- GitHub 배포 (저장소 생성, 커밋, 푸시)
 ```
@@ -400,17 +400,17 @@ DMAP 생태계는 **DMAP 빌더 → AI팀(플러그인) → 외부 플러그인 
 ## 플러그인 개발 워크플로우
 
 요구사항 정의부터 GitHub 배포까지 **End-to-End 자동화**로 수행됨.
-`/dmap:requirement-writer`로 요구사항 정의서를 먼저 작성한 후,
+`/dmap:team-planner`로 팀 기획서를 먼저 작성한 후,
 `/dmap:develop-plugin`으로 4-Phase 워크플로우를 자동 수행하고,
 `/dmap:publish`로 GitHub에 배포함. 각 Phase 완료 시 사용자 승인을 받아 다음 단계로 진행함.
 
 ```
-/dmap:requirement-writer → /dmap:develop-plugin (Phase 1~4) → /dmap:publish
+/dmap:team-planner → /dmap:develop-plugin (Phase 1~4) → /dmap:publish
 ```
 
 | Phase | 단계 | 주요 활동 |
 |:-----:|------|----------|
-| 1 | 요구사항 수집 | 요구사항 정의서 분석, 플러그인 적합여부 판단, 누락 정보 수집 ([샘플](https://github.com/unicorn-plugins/abra/blob/main/output/requirement.md)) |
+| 1 | 요구사항 수집 | 팀 기획서 분석, 플러그인 적합여부 판단, 누락 정보 수집 ([샘플](https://github.com/unicorn-plugins/abra/blob/main/output/requirement.md)) |
 | 2 | 설계 및 계획 | 공유 자원 선택, 플러그인 구조 설계, 개발 계획서 작성 |
 | 3 | 플러그인 개발 | 스켈레톤 생성, Gateway/Agent/Skill/Command 개발, README 작성 |
 | 4 | 검증 및 완료 | DMAP 표준 준수 검증, 최종 보고, 공유자원 등록(선택) |
@@ -450,7 +450,7 @@ dmap/
 │   └── tools/               #   도구 (커스텀 앱/CLI)
 ├── skills/                  # DMAP 빌더 스킬
 │   ├── develop-plugin/      #   플러그인 개발 (4-Phase)
-│   ├── requirement-writer/  #   요구사항 정의서 작성 지원
+│   ├── team-planner/        #   팀 기획서 작성 지원
 │   ├── publish/             #   GitHub 배포
 │   ├── add-ext-skill/       #   외부호출 스킬 추가 유틸리티
 │   ├── remove-ext-skill/    #   외부호출 스킬 제거 유틸리티
@@ -459,7 +459,7 @@ dmap/
 │   └── help/                #   사용 안내
 ├── commands/                # 슬래시 명령 진입점
 │   ├── develop-plugin.md
-│   ├── requirement-writer.md
+│   ├── team-planner.md
 │   ├── publish.md
 │   ├── add-ext-skill.md
 │   ├── remove-ext-skill.md

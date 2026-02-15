@@ -253,7 +253,7 @@ shared → backend → frontend 순서로 빌드.
 | 스킬 | 카테고리 | 승인 게이트 | 설명 |
 |------|----------|------------|------|
 | develop-plugin | core | O | DMAP 플러그인 개발 (4-Phase 워크플로우) |
-| requirement-writer | core | O | 요구사항 정의서 작성 지원 (AI 자동 완성) |
+| team-planner | core | O | 팀 기획서 작성 지원 (AI 자동 완성) |
 | publish | setup | O | 개발 완료된 플러그인을 GitHub에 배포 |
 | setup | setup | X | DMAP 빌더 초기 설정 및 검증 |
 | help | utility | X | 사용 안내 |

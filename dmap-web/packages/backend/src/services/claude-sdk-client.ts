@@ -52,7 +52,7 @@ function parseSkillSteps(skillContent: string): { steps: Array<{ step: number; l
     };
   }
 
-  // Try Step pattern (like requirement-writer, publish)
+  // Try Step pattern (like team-planner, publish)
   const stepPattern = /^###\s+Step\s+(\d+)[:.]\s*(.+)$/gm;
   matches = [...skillContent.matchAll(stepPattern)];
   if (matches.length >= 2) {

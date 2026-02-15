@@ -51,7 +51,7 @@ const en: Translations = {
   'about.description1':
     'DMAP (Declarative Multi-Agent Plugin) is a no-code builder for creating multi-agent plugins using only Markdown and YAML.',
   'about.description2':
-    'From requirements writing to plugin development and GitHub deployment — a complete End-to-End workflow.',
+    'From team planning to plugin development and GitHub deployment — a complete End-to-End workflow.',
   'about.footer': 'Developed by Unicorn Inc. | MIT License',
 
   // Stream
@@ -81,8 +81,8 @@ const en: Translations = {
   // Skill names
   'skill.develop-plugin.name': 'Plugin Development',
   'skill.develop-plugin.desc': 'Full DMAP plugin development with 4-Phase workflow',
-  'skill.requirement-writer.name': 'Requirements',
-  'skill.requirement-writer.desc': 'AI-powered requirements specification auto-completion',
+  'skill.team-planner.name': 'Team Planner',
+  'skill.team-planner.desc': 'AI-powered team plan auto-completion',
   'skill.publish.name': 'GitHub Deploy',
   'skill.publish.desc': 'Deploy completed plugin to GitHub',
   'skill.setup.name': 'Builder Setup',
