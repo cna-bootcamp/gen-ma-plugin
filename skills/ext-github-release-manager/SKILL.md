@@ -24,7 +24,7 @@ github-release-manager 플러그인에 위임하여 GitHub Release 문서를 자
 
 github-release-manager 플러그인이 설치되어 있어야 함.
 
-- 확인: `claude plugin list`
+- 확인: `test -d ~/.claude/plugins/cache/github-release-manager && echo "INSTALLED" || echo "NOT_INSTALLED"`
 - 설치:
   - `claude plugin marketplace add unicorn-plugins/github-release-manager`
   - `claude plugin install github-release-manager@github-release-manager`
@@ -82,12 +82,13 @@ github-release-manager 플러그인이 설치되어 있어야 함.
 
 github-release-manager 플러그인 설치 여부 확인.
 
-1. `claude plugin list` 출력에서 `github-release-manager` 존재 여부 확인
-2. 미설치 시 사용자에게 설치 안내 후 중단:
-   - `claude plugin marketplace add unicorn-plugins/github-release-manager`
-   - `claude plugin install github-release-manager@github-release-manager`
-3. `gh auth status`로 GitHub CLI 인증 상태 확인
-4. 미인증 시 `gh auth login` 안내 후 중단
+1. 디렉토리 존재 확인: `test -d ~/.claude/plugins/cache/github-release-manager && echo "INSTALLED" || echo "NOT_INSTALLED"`
+   - "INSTALLED" 출력 시 → 설치 확인 완료, Phase 1로 진행
+   - "NOT_INSTALLED" 출력 시 → 사용자에게 설치 안내 후 중단:
+     - `claude plugin marketplace add unicorn-plugins/github-release-manager`
+     - `claude plugin install github-release-manager@github-release-manager`
+2. `gh auth status`로 GitHub CLI 인증 상태 확인
+3. 미인증 시 `gh auth login` 안내 후 중단
 
 ### Phase 1: 도메인 컨텍스트 수집 (`ulw` 활용)
 
