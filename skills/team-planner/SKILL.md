@@ -2,6 +2,7 @@
 name: team-planner
 description: 팀 기획서 작성 지원 (AI 자동 완성)
 user-invocable: true
+type: orchestrator
 ---
 
 # Team Planner
