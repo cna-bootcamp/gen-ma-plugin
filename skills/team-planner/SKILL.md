@@ -150,10 +150,11 @@ AskUserQuestion 도구를 활용하여 필수 항목을 순차 수집함.
 2. `{dmap 프로젝트}/output/team-plan-{플러그인명}.md` 파일 존재 여부 확인
    존재 시 AskUserQuestion으로 덮어쓰기 확인
 3. `{dmap 프로젝트}/output/team-plan-{플러그인명}.md`에 저장
-4. 사용자에게 완료 안내:
+4. 사용자에게 완료 안내 및 플러그인 개발 전환 문의:
    - 저장 경로 안내
-   - `/dmap:develop-plugin` 명령으로 이어서
-     플러그인 개발을 시작할 수 있음을 안내
+   - 사용자에게 "바로 플러그인 개발을 시작할까요?" 문의
+   - 동의 시: `CHAIN>>>/dmap:develop-plugin` 출력으로 스킬 전환 (팀 기획서 경로 전달)
+   - 거절 시: "나중에 `/dmap:develop-plugin`으로 언제든 개발 시작 가능합니다" 안내
 
 [Top](#team-planner)
 
