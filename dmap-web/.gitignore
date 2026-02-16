@@ -4,3 +4,6 @@ dist/
 *.tsbuildinfo
 plugins.json
 agents/
+
+.claude
+.dmap

@@ -75,7 +75,41 @@ DMAP 표준 문서에 접근 가능한지 확인함.
 - `standards/plugin-standard-gateway.md` 존재 확인
 - `resources/plugin-resources.md` 존재 확인
 
-### Step 3: 설정 완료 보고
+### Step 3: dmap-web 마크다운 렌더링 설정
+
+dmap-web 프로젝트의 마크다운 렌더링을 위한 필수 패키지를 설정함.
+
+**실행 조건:**
+- `dmap-web/packages/frontend` 디렉토리가 존재하는 경우에만 수행
+
+**수행 작업:**
+
+1. `@tailwindcss/typography` 패키지 설치 확인:
+   ```bash
+   cd dmap-web/packages/frontend && npm list @tailwindcss/typography
+   ```
+
+2. 미설치 시 패키지 설치:
+   ```bash
+   cd dmap-web/packages/frontend && npm install @tailwindcss/typography
+   ```
+
+3. `tailwind.config.js` 플러그인 설정 확인:
+   ```js
+   plugins: [
+     require('@tailwindcss/typography'),
+   ],
+   ```
+
+4. 미설정 시 플러그인 추가:
+   - `plugins: []`를 찾아서 `require('@tailwindcss/typography')` 추가
+
+**이유:**
+- `MessageBubble.tsx`에서 `prose` 클래스를 사용하여 마크다운을 렌더링함
+- `prose` 클래스는 `@tailwindcss/typography` 플러그인이 제공함
+- 플러그인 미설치 시 마크다운이 일반 텍스트로만 표시됨
+
+### Step 4: 설정 완료 보고
 
 확인 결과를 사용자에게 보고함.
 
@@ -88,9 +122,12 @@ DMAP 표준 문서에 접근 가능한지 확인함.
 - 플러그인 매니페스트: 확인
 - 스킬 디렉토리: 확인
 - 표준 문서: 전체 접근 가능
+- dmap-web 마크다운 렌더링: 확인 (조건부)
 
 사용 가능한 명령:
 - /dmap:develop-plugin  — DMAP 플러그인 개발
+- /dmap:team-planner    — 팀 기획서 작성 지원
+- /dmap:publish         — 플러그인 배포
 - /dmap:help            — 사용 안내
 - /dmap:setup           — 초기 설정 (현재 실행 완료)
 ```
@@ -137,6 +174,9 @@ DMAP 표준 문서에 접근 가능한지 확인함.
 - [ ] `skills/` 디렉토리 존재 확인 로직 포함
 - [ ] `commands/` 디렉토리 존재 확인 로직 포함
 - [ ] 표준 문서 5종 경로가 정확한가
+- [ ] dmap-web 디렉토리 존재 시 마크다운 렌더링 설정 수행
+- [ ] `@tailwindcss/typography` 패키지 설치 확인 및 설치
+- [ ] `tailwind.config.js` 플러그인 설정 확인 및 추가
 - [ ] 설정 완료 출력 형식에 명령 목록 포함
 - [ ] 에이전트 위임 없이 직접 수행하는 구조인가
 
