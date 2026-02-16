@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { DMAP_SKILLS } from '@dmap-web/shared';
-import type { SkillExecuteRequest, SkillMeta, SSESkillChangedEvent } from '@dmap-web/shared';
+import type { SkillExecuteRequest, SkillMeta, SSESkillChangedEvent, SSEUsageEvent } from '@dmap-web/shared';
 import { sessionManager } from '../services/session-manager.js';
 import { executeSkill, executePrompt } from '../services/claude-sdk-client.js';
 import { initSSE, sendSSE, endSSE } from '../middleware/sse-handler.js';
@@ -94,9 +94,7 @@ skillsRouter.get('/', async (req, res) => {
 // POST /api/skills/:name/execute - Execute a DMAP skill with SSE streaming
 skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
   const skillName = String(req.params.name);
-  const { input, sessionId: existingSessionId, pluginId } = req.body as SkillExecuteRequest;
-  const lang = (req.body as any).lang as string | undefined;
-  const filePaths = (req.body as any).filePaths as string[] | undefined;
+  const { input, sessionId: existingSessionId, pluginId, lang, filePaths } = req.body as SkillExecuteRequest;
 
   // Resolve project directory
   const dmapProjectDir = await resolveProjectDir(pluginId);
@@ -140,7 +138,7 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
     });
 
     try {
-      let lastUsage: any = null;
+      let lastUsage: SSEUsageEvent | null = null;
       const result = await executePrompt(
         input,
         dmapProjectDir,
@@ -159,12 +157,14 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
       );
 
       if (lastUsage) {
+        // TypeScript can't track callback mutations; cast is safe as lastUsage is set in onEvent
+        const u = lastUsage as SSEUsageEvent;
         sessionManager.updateMeta(session.id, {
           usage: {
-            inputTokens: lastUsage.inputTokens,
-            outputTokens: lastUsage.outputTokens,
-            totalCostUsd: lastUsage.totalCostUsd,
-            durationMs: lastUsage.durationMs,
+            inputTokens: u.inputTokens,
+            outputTokens: u.outputTokens,
+            totalCostUsd: u.totalCostUsd,
+            durationMs: u.durationMs,
           },
         });
       }
@@ -175,8 +175,8 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
       } else {
         sessionManager.abortSession(session.id);
       }
-    } catch (error: any) {
-      sendSSE(res, { type: 'error', message: error.message || 'Prompt execution failed' });
+    } catch (error: unknown) {
+      sendSSE(res, { type: 'error', message: (error as Error).message || 'Prompt execution failed' });
       sessionManager.setStatus(session.id, 'error');
     } finally {
       if (activeExecutions.get(session.id) === abortController) {
@@ -229,7 +229,7 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
   });
 
   try {
-    let lastUsage: any = null;
+    let lastUsage: SSEUsageEvent | null = null;
     let chainDetected = false;
     const result = await executeSkill(
       skillName,
@@ -282,12 +282,14 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
     );
 
     if (lastUsage) {
+      // TypeScript can't track callback mutations; cast is safe as lastUsage is set in onEvent
+      const u = lastUsage as SSEUsageEvent;
       sessionManager.updateMeta(session.id, {
         usage: {
-          inputTokens: lastUsage.inputTokens,
-          outputTokens: lastUsage.outputTokens,
-          totalCostUsd: lastUsage.totalCostUsd,
-          durationMs: lastUsage.durationMs,
+          inputTokens: u.inputTokens,
+          outputTokens: u.outputTokens,
+          totalCostUsd: u.totalCostUsd,
+          durationMs: u.durationMs,
         },
       });
     }
@@ -302,10 +304,10 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
     } else if (!chainDetected) {
       sessionManager.abortSession(session.id);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     sendSSE(res, {
       type: 'error',
-      message: error.message || 'Skill execution failed',
+      message: (error as Error).message || 'Skill execution failed',
     });
     sessionManager.setStatus(session.id, 'error');
   } finally {

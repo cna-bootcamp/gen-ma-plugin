@@ -16,8 +16,8 @@ pluginsRouter.get('/', async (_req, res) => {
       })),
     );
     res.json(enriched);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 
@@ -38,9 +38,10 @@ pluginsRouter.post('/', async (req, res) => {
     // Auto-sync plugin agents
     try { syncPluginAgents(plugin.id, plugin.projectDir); } catch { /* ignore sync errors */ }
     res.status(201).json(plugin);
-  } catch (error: any) {
-    const status = error.message === 'already_registered' ? 409 : 400;
-    res.status(status).json({ error: error.message });
+  } catch (error: unknown) {
+    const msg = (error as Error).message;
+    const status = msg === 'already_registered' ? 409 : 400;
+    res.status(status).json({ error: msg });
   }
 });
 
@@ -63,8 +64,8 @@ pluginsRouter.post('/:id/agents/sync', async (req, res) => {
     const projectDir = await resolveProjectDir(req.params.id);
     const result = syncPluginAgents(req.params.id, projectDir);
     res.json({ success: true, count: result.count, agents: result.agents });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 
@@ -75,8 +76,9 @@ pluginsRouter.delete('/:id', async (req, res) => {
     // Auto-remove registered agents
     try { removeRegisteredAgents(req.params.id); } catch { /* ignore */ }
     res.json({ success: true });
-  } catch (error: any) {
-    const status = error.message === 'cannot_remove_default' ? 403 : 404;
-    res.status(status).json({ error: error.message });
+  } catch (error: unknown) {
+    const msg = (error as Error).message;
+    const status = msg === 'cannot_remove_default' ? 403 : 404;
+    res.status(status).json({ error: msg });
   }
 });

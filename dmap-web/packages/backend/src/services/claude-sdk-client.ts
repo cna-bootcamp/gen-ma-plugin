@@ -4,22 +4,21 @@ import type { SSEEvent, QuestionItem } from '@dmap-web/shared';
 import { loadOmcAgents, getSkillPatterns, type OmcAgentDef } from './omc-integration.js';
 import { loadRegisteredAgents } from './agent-registry.js';
 
-let logFilePath: string | null = null;
+type LogFn = (label: string, data?: unknown) => Promise<void>;
 
-async function initLog(dmapProjectDir: string, skillName: string): Promise<void> {
+async function createLogger(dmapProjectDir: string, skillName: string): Promise<LogFn> {
   const logsDir = path.join(dmapProjectDir, '.dmap', 'logs');
   await mkdir(logsDir, { recursive: true });
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  logFilePath = path.join(logsDir, `${ts}_${skillName}.log`);
-  await appendFile(logFilePath, `=== ${skillName} started at ${new Date().toISOString()} ===\n`);
-}
+  const filePath = path.join(logsDir, `${ts}_${skillName}.log`);
+  await appendFile(filePath, `=== ${skillName} started at ${new Date().toISOString()} ===\n`);
 
-async function log(label: string, data?: unknown): Promise<void> {
-  if (!logFilePath) return;
-  const line = data !== undefined
-    ? `[${new Date().toISOString()}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}\n`
-    : `[${new Date().toISOString()}] ${label}\n`;
-  await appendFile(logFilePath, line).catch(() => {});
+  return async (label: string, data?: unknown): Promise<void> => {
+    const line = data !== undefined
+      ? `[${new Date().toISOString()}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}\n`
+      : `[${new Date().toISOString()}] ${label}\n`;
+    await appendFile(filePath, line).catch(() => {});
+  };
 }
 
 export interface StreamCallbacks {
@@ -35,6 +34,26 @@ interface RunQueryResult {
     title: string;
     questions: QuestionItem[];
   };
+}
+
+// SDK message types (not exported by @anthropic-ai/claude-code)
+interface SdkContentBlock {
+  type: string;
+  text?: string;
+  name?: string;
+  id?: string;
+  input?: Record<string, unknown>;
+}
+
+interface SdkMessage {
+  type: string;
+  session_id?: string;
+  message?: { content?: SdkContentBlock[] };
+  content?: SdkContentBlock[];
+  total_cost_usd?: number;
+  usage?: Record<string, number>;
+  num_turns?: number;
+  duration_ms?: number;
 }
 
 const ASK_USER_REGEX_G = /<!--ASK_USER-->\s*([\s\S]*?)\s*<!--\/ASK_USER-->/g;
@@ -80,11 +99,11 @@ function detectStepFromText(text: string, isPhaseMode: boolean): number | null {
   return null;
 }
 
-function extractAskUserBlocks(text: string): { cleanText: string; title: string; questions: any[] } | null {
+function extractAskUserBlocks(text: string): { cleanText: string; title: string; questions: QuestionItem[] } | null {
   const matches = [...text.matchAll(ASK_USER_REGEX_G)];
   if (matches.length === 0) return null;
 
-  const allQuestions: any[] = [];
+  const allQuestions: QuestionItem[] = [];
   let title = '질문';
 
   for (const m of matches) {
@@ -159,6 +178,7 @@ async function runQuery(
   options: Record<string, unknown>,
   callbacks: StreamCallbacks,
   externalAbortController?: AbortController,
+  log?: LogFn,
 ): Promise<RunQueryResult> {
   const { query } = await import('@anthropic-ai/claude-code');
 
@@ -177,11 +197,11 @@ async function runQuery(
     if (abortController.signal.aborted) break;
 
     console.log(`[SDK] message.type=${message.type}`, JSON.stringify(message).slice(0, 500));
-    await log(`message.type=${message.type}`, message);
+    await log?.(`message.type=${message.type}`, message);
 
     // Capture session ID from system init
     if (message.type === 'system') {
-      const sysMsg = message as any;
+      const sysMsg = message as SdkMessage;
       if (sysMsg.session_id) {
         sdkSessionId = sysMsg.session_id;
       }
@@ -189,7 +209,7 @@ async function runQuery(
 
     // Assistant messages with content blocks
     if (message.type === 'assistant') {
-      const assistantMsg = message as any;
+      const assistantMsg = message as SdkMessage;
       const content = assistantMsg.message?.content ?? assistantMsg.content;
       if (Array.isArray(content)) {
         for (const block of content) {
@@ -198,12 +218,12 @@ async function runQuery(
             const chainCommand = detectSkillChainCommand(block.text);
             if (chainCommand) {
               console.log(`[SDK] Detected skill chain: → ${chainCommand.skillName}`);
-              await log('skill_chain_detected', chainCommand);
+              await log?.('skill_chain_detected', chainCommand);
               callbacks.onEvent({
                 type: 'skill_changed',
                 newSkillName: chainCommand.skillName,
                 chainInput: chainCommand.input || '',
-              } as any);
+              });
               // Abort current execution to prevent complete event conflict
               abortController.abort();
               return { hasContent, sdkSessionId, pendingQuestions };
@@ -217,7 +237,7 @@ async function runQuery(
               }
               pendingQuestions = { title: extracted.title, questions: extracted.questions };
               console.log(`[SDK] Parsed ${extracted.questions.length} structured questions`);
-              await log('parsed_questions', pendingQuestions);
+              await log?.('parsed_questions', pendingQuestions);
             } else {
               hasContent = true;
               callbacks.onEvent({ type: 'text', text: block.text });
@@ -227,19 +247,20 @@ async function runQuery(
               // AskUserQuestion detected - abort is REQUIRED to prevent CLI deadlock
               // (CLI waits for tool_result indefinitely without abort)
               console.warn(`[SDK] AskUserQuestion tool detected. Aborting and converting to pendingQuestions.`);
-              await log('askUserQuestion_converted', block.input);
+              await log?.('askUserQuestion_converted', block.input);
 
               // Convert AskUserQuestion data to pendingQuestions format
-              const askQuestions = block.input?.questions || [];
+              const askInput = block.input as Record<string, unknown> | undefined;
+              const askQuestions = (askInput?.questions ?? []) as Array<Record<string, unknown>>;
               if (askQuestions.length > 0) {
                 pendingQuestions = {
-                  title: askQuestions[0]?.question || '질문',
-                  questions: askQuestions.map((q: any) => ({
-                    question: q.question || '',
-                    description: q.description || '',
+                  title: String(askQuestions[0]?.question || '질문'),
+                  questions: askQuestions.map((q) => ({
+                    question: String(q.question || ''),
+                    description: String(q.description || ''),
                     type: q.options ? 'radio' as const : 'text' as const,
-                    options: (q.options || []).map((o: any) =>
-                      typeof o === 'string' ? o : o.label || ''
+                    options: (Array.isArray(q.options) ? q.options : []).map((o: unknown) =>
+                      typeof o === 'string' ? o : String((o as Record<string, unknown>).label || '')
                     ),
                     suggestion: '',
                     example: '',
@@ -267,7 +288,7 @@ async function runQuery(
                 }
                 callbacks.onEvent({
                   type: 'agent',
-                  id: block.id,
+                  id: block.id || '',
                   subagentType: String(taskInput.subagent_type || 'unknown'),
                   model,
                   description: String(taskInput.description || ''),
@@ -285,7 +306,7 @@ async function runQuery(
               else if (block.name === 'Glob') desc = String(input.pattern || '');
               else if (block.name === 'Task') desc = String(input.description || '');
             }
-            callbacks.onEvent({ type: 'tool', name: block.name, id: block.id, description: desc || undefined });
+            callbacks.onEvent({ type: 'tool', name: block.name || '', id: block.id || '', description: desc || undefined });
           }
         }
       }
@@ -293,7 +314,7 @@ async function runQuery(
 
     // Result: process usage and session ID only (text already emitted in assistant message)
     if (message.type === 'result') {
-      const resultMsg = message as any;
+      const resultMsg = message as SdkMessage;
       // Emit usage data
       if (resultMsg.total_cost_usd !== undefined || resultMsg.usage) {
         const usageData = (resultMsg.usage || {}) as Record<string, number>;
@@ -413,7 +434,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
   console.log(`[SDK] Payload: agents=${agentsSize}B, systemPrompt=${promptSize}B, total=${agentsSize + promptSize}B`);
 
   try {
-    await initLog(dmapProjectDir, skillName);
+    const log = await createLogger(dmapProjectDir, skillName);
     await log('options', { model: options.model, maxTurns: options.maxTurns, resumeSessionId, disallowedTools: options.disallowedTools, hasAppendSystemPrompt: !!options.appendSystemPrompt, omcAgentCount: omcAgents ? Object.keys(omcAgents).length : 0, pluginAgentCount, totalAgentCount: allAgentCount, payloadBytes: agentsSize + promptSize });
 
     const isEnglish = lang && lang !== 'ko';
@@ -462,8 +483,8 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
       ? {
           onEvent: (event) => {
             callbacks.onEvent(event);
-            if (event.type === 'text' && 'text' in event) {
-              const detected = detectStepFromText((event as any).text, parsedSkillSteps.isPhaseMode);
+            if (event.type === 'text') {
+              const detected = detectStepFromText(event.text, parsedSkillSteps.isPhaseMode);
               if (detected && detected > currentActiveStep && detected <= parsedSkillSteps.steps.length) {
                 currentActiveStep = detected;
                 callbacks.onEvent({ type: 'progress', activeStep: currentActiveStep });
@@ -483,7 +504,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
       const opts: Record<string, unknown> = { ...options };
       if (sdkSessionId) opts.resume = sdkSessionId;
 
-      const result = await runQuery(currentPrompt, opts, trackingCallbacks, abortController);
+      const result = await runQuery(currentPrompt, opts, trackingCallbacks, abortController, log);
       sdkSessionId = result.sdkSessionId || sdkSessionId;
 
       // Update SDK session ID for future resume
@@ -524,7 +545,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
 
       return { fullyComplete };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (abortController?.signal.aborted) {
       console.log(`[SDK] Skill execution aborted for "${skillName}"`);
       return { fullyComplete: true };
@@ -532,7 +553,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
     console.error(`[SDK] Error:`, error);
     callbacks.onEvent({
       type: 'error',
-      message: error.message || 'Claude SDK execution failed',
+      message: (error as Error).message || 'Claude SDK execution failed',
     });
     return { fullyComplete: true };
   }
@@ -588,7 +609,7 @@ ${ASK_USER_INSTRUCTION}`,
   }
 
   try {
-    await initLog(dmapProjectDir, '__prompt__');
+    const log = await createLogger(dmapProjectDir, '__prompt__');
 
     let fileAttachment = '';
     if (filePaths && filePaths.length > 0) {
@@ -612,7 +633,7 @@ ${ASK_USER_INSTRUCTION}`,
 
     console.log(`[SDK] Prompt mode: ${currentPrompt.slice(0, 100)}...`);
 
-    const result = await runQuery(currentPrompt, options, callbacks, abortController);
+    const result = await runQuery(currentPrompt, options, callbacks, abortController, log);
 
     if (result.sdkSessionId) {
       callbacks.onSessionId?.(result.sdkSessionId);
@@ -628,13 +649,13 @@ ${ASK_USER_INSTRUCTION}`,
 
     const fullyComplete = !result.pendingQuestions || result.pendingQuestions.questions.length === 0;
     return { fullyComplete };
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (abortController?.signal.aborted) {
       console.log(`[SDK] Prompt execution aborted`);
       return { fullyComplete: true };
     }
     console.error(`[SDK] Prompt error:`, error);
-    callbacks.onEvent({ type: 'error', message: error.message || 'Prompt execution failed' });
+    callbacks.onEvent({ type: 'error', message: (error as Error).message || 'Prompt execution failed' });
     return { fullyComplete: true };
   }
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Layout } from './components/Layout';
 import { StartupCheck } from './components/StartupCheck';
-import { Toast } from './components/Toast';
+import { ToastContainer } from './components/ToastContainer';
 
 const CACHE_KEY = 'dmap-startup-check-passed';
 const CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
@@ -22,7 +22,7 @@ export default function App() {
 
   return (
     <>
-      <Toast />
+      <ToastContainer />
       {!ready && <StartupCheck onReady={handleReady} />}
       {ready && <Layout />}
     </>

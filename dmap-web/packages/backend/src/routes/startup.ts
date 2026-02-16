@@ -28,11 +28,12 @@ const extendedEnv = {
   PATH: `${LOCAL_BIN}${path.delimiter}${process.env.PATH || ''}`,
 };
 
-async function runCommand(cmd: string, timeoutMs = 10000): Promise<{ stdout: string; stderr: string }> {
+async function runCommand(cmd: string, timeoutMs = 10000, cwd?: string): Promise<{ stdout: string; stderr: string }> {
   try {
-    return await execAsync(cmd, { timeout: timeoutMs, shell: SHELL, env: extendedEnv });
-  } catch (error: any) {
-    return { stdout: error.stdout || '', stderr: error.stderr || error.message || '' };
+    return await execAsync(cmd, { timeout: timeoutMs, shell: SHELL, env: extendedEnv, ...(cwd && { cwd }) });
+  } catch (error: unknown) {
+    const e = error as Record<string, unknown>;
+    return { stdout: (e.stdout as string) || '', stderr: (e.stderr as string) || (e instanceof Error ? e.message : String(error)) || '' };
   }
 }
 
@@ -211,7 +212,7 @@ startupRouter.post('/fix', async (req, res) => {
   switch (action) {
     case 'npm_install': {
       const cwd = path.join(DMAP_PROJECT_DIR, 'dmap-web');
-      const { stdout, stderr } = await runCommand(`cd "${cwd}" && npm install`, 120000);
+      const { stdout, stderr } = await runCommand('npm install', 120000, cwd);
       res.json({ success: !stderr.includes('ERR'), detail: stdout || stderr });
       break;
     }

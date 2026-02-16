@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../stores/appStore.js';
+import { useToastStore } from '../stores/toastStore.js';
 import { useT } from '../i18n/index.js';
 import { useLangStore } from '../stores/langStore.js';
 import type { PluginInfo, SkillMeta } from '@dmap-web/shared';
@@ -48,7 +49,7 @@ export function PluginSwitcher({ disabled }: PluginSwitcherProps) {
       const setupSkill = fetchedSkills.find((s) => s.name === 'setup');
       if (setupSkill) {
         useAppStore.getState().selectSkill(setupSkill);
-        useAppStore.getState().showToast(t('setup.required'));
+        useToastStore.getState().showToast(t('setup.required'), 'warning');
       }
     }
   };

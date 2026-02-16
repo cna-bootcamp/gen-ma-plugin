@@ -48,8 +48,6 @@ interface AppState {
   pendingSkillSwitch: SkillMeta | null;
   // Centralized stream abort
   streamAbortController: AbortController | null;
-  // Toast
-  toastMessage: string | null;
 
   // Actions
   fetchPlugins: () => Promise<void>;
@@ -76,8 +74,6 @@ interface AppState {
   loadTranscriptSession: (sessionId: string, summary: string) => Promise<void>;
   clearTranscriptView: () => void;
   switchSkillChain: (newSkill: SkillMeta, newSessionId: string) => void;
-  showToast: (message: string) => void;
-  clearToast: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -93,7 +89,6 @@ export const useAppStore = create<AppState>((set) => ({
   pendingApproval: null,
   pendingSkillSwitch: null,
   streamAbortController: null,
-  toastMessage: null,
 
   fetchPlugins: async () => {
     try {
@@ -326,6 +321,4 @@ export const useAppStore = create<AppState>((set) => ({
     }));
   },
 
-  showToast: (message) => set({ toastMessage: message }),
-  clearToast: () => set({ toastMessage: null }),
 }));

@@ -190,6 +190,8 @@ export interface SkillExecuteRequest {
   input?: string;
   sessionId?: string;
   pluginId?: string;
+  lang?: string;
+  filePaths?: string[];
 }
 
 export interface SessionRespondRequest {

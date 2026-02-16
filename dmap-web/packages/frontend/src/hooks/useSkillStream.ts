@@ -3,7 +3,7 @@ import { useAppStore } from '../stores/appStore.js';
 import { useT } from '../i18n/index.js';
 import { useLangStore } from '../stores/langStore.js';
 import { useActivityStore } from '../stores/activityStore.js';
-import type { ApprovalOption, QuestionItem } from '@dmap-web/shared';
+import type { QuestionItem, SSEEvent } from '@dmap-web/shared';
 
 const API_BASE = '/api';
 
@@ -24,88 +24,83 @@ export function useSkillStream() {
   const executionIdRef = useRef<string | null>(null);
 
   const handleSSEEvent = useCallback(
-    (type: string, data: Record<string, unknown>) => {
-      switch (type) {
+    (event: SSEEvent) => {
+      switch (event.type) {
         case 'text':
-          appendToLastMessage(data.text as string);
+          appendToLastMessage(event.text);
           break;
         case 'tool': {
-          const toolDesc = data.description ? `${data.name}: ${data.description}` : (data.name as string);
+          const toolDesc = event.description ? `${event.name}: ${event.description}` : event.name;
           addMessage({
             role: 'system',
             content: toolDesc,
             toolName: toolDesc,
           });
-          useActivityStore.getState().addToolEvent(data.name as string, data.description as string | undefined);
+          useActivityStore.getState().addToolEvent(event.name, event.description);
           break;
         }
         case 'agent': {
           useActivityStore.getState().addAgentEvent(
-            data.id as string,
-            data.subagentType as string,
-            data.model as string,
-            data.description as string | undefined,
+            event.id,
+            event.subagentType,
+            event.model,
+            event.description,
           );
           break;
         }
         case 'usage': {
           useActivityStore.getState().setUsage({
-            inputTokens: data.inputTokens as number,
-            outputTokens: data.outputTokens as number,
-            cacheReadTokens: data.cacheReadTokens as number,
-            cacheCreationTokens: data.cacheCreationTokens as number,
-            totalCostUsd: data.totalCostUsd as number,
-            durationMs: data.durationMs as number,
-            numTurns: data.numTurns as number,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
+            cacheReadTokens: event.cacheReadTokens,
+            cacheCreationTokens: event.cacheCreationTokens,
+            totalCostUsd: event.totalCostUsd,
+            durationMs: event.durationMs,
+            numTurns: event.numTurns,
           });
           break;
         }
         case 'progress': {
-          const steps = data.steps as Array<{ step: number; label: string }> | undefined;
-          const activeStep = data.activeStep as number | undefined;
-          if (steps) {
-            useActivityStore.getState().setProgressSteps(steps);
+          if (event.steps) {
+            useActivityStore.getState().setProgressSteps(event.steps);
           }
-          if (activeStep) {
-            useActivityStore.getState().setActiveStep(activeStep);
+          if (event.activeStep) {
+            useActivityStore.getState().setActiveStep(event.activeStep);
           }
           break;
         }
         case 'approval':
-          setSessionId(data.sessionId as string);
+          setSessionId(event.sessionId);
           setPendingApproval({
-            id: data.id as string,
-            question: data.question as string,
-            options: data.options as ApprovalOption[],
+            id: event.id,
+            question: event.question,
+            options: event.options,
           });
           break;
         case 'questions':
           pendingQuestionsRef.current = {
-            title: data.title as string,
-            questions: data.questions as QuestionItem[],
+            title: event.title,
+            questions: event.questions,
           };
           break;
         case 'skill_changed': {
-          const newSkillName = data.newSkillName as string;
-          const newSessionId = data.newSessionId as string;
           const skills = useAppStore.getState().skills;
-          const newSkill = skills.find((s) => s.name === newSkillName);
-          if (newSkill && newSessionId) {
-            switchSkillChain(newSkill, newSessionId);
+          const newSkill = skills.find((s) => s.name === event.newSkillName);
+          if (newSkill && event.newSessionId) {
+            switchSkillChain(newSkill, event.newSessionId);
           }
           break;
         }
         case 'complete': {
           // Don't overwrite session ID if a skill chain has already set a new one
           const currentSessionId = useAppStore.getState().sessionId;
-          const completedSessionId = data.sessionId as string;
-          if (!currentSessionId || currentSessionId === completedSessionId) {
-            setSessionId(completedSessionId);
+          if (!currentSessionId || currentSessionId === event.sessionId) {
+            setSessionId(event.sessionId);
           }
           fetchSkills();
           const storedQuestions = pendingQuestionsRef.current;
           pendingQuestionsRef.current = null;
-          const isFullyComplete = data.fullyComplete as boolean;
+          const isFullyComplete = event.fullyComplete;
 
           // Mark all progress steps as complete when skill finishes
           if (isFullyComplete) {
@@ -140,7 +135,7 @@ export function useSkillStream() {
         case 'error':
           addMessage({
             role: 'system',
-            content: `\u274C ${data.message as string}`,
+            content: `\u274C ${event.message}`,
           });
           break;
         case 'done':
@@ -225,8 +220,8 @@ export function useSkillStream() {
             }
 
             try {
-              const parsed = JSON.parse(data);
-              handleSSEEvent(eventType, parsed);
+              const parsed = JSON.parse(data) as Record<string, unknown>;
+              handleSSEEvent({ type: eventType, ...parsed } as SSEEvent);
             } catch {
               // Skip malformed JSON
             }

@@ -83,6 +83,12 @@ filesystemRouter.post('/upload', async (req, res) => {
     return;
   }
 
+  const MAX_FILES = 20;
+  if (files.length > MAX_FILES) {
+    res.status(400).json({ error: `Maximum ${MAX_FILES} files allowed` });
+    return;
+  }
+
   const uploadDir = path.join(os.tmpdir(), 'dmap-uploads', crypto.randomUUID());
   await mkdir(uploadDir, { recursive: true });
 
@@ -92,7 +98,8 @@ filesystemRouter.post('/upload', async (req, res) => {
     const ext = path.extname(file.name).toLowerCase();
     if (!ALLOWED_FILE_EXTENSIONS.has(ext)) continue;
 
-    const safeName = file.name.replace(/[<>:"/\\|?*]/g, '_');
+    const baseName = path.basename(file.name);
+    const safeName = baseName.replace(/[<>:"/\\|?*]/g, '_').slice(0, 255);
     const filePath = path.join(uploadDir, safeName);
     const buffer = Buffer.from(file.data, 'base64');
     await writeFile(filePath, buffer);
