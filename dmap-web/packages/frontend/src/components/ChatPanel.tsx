@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/appStore.js';
 import { useSkillStream } from '../hooks/useSkillStream.js';
 import { useFileAttachment } from '../hooks/useFileAttachment.js';
@@ -18,7 +19,16 @@ const MIN_ROWS = 2;
 const MAX_ROWS = 10;
 
 export function ChatPanel() {
-  const { selectedSkill, messages, isStreaming, pendingApproval, sessionId, selectedPlugin, isTranscriptView, clearTranscriptView } = useAppStore();
+  const { selectedSkill, messages, isStreaming, pendingApproval, sessionId, selectedPlugin, isTranscriptView, clearTranscriptView } = useAppStore(useShallow((s) => ({
+    selectedSkill: s.selectedSkill,
+    messages: s.messages,
+    isStreaming: s.isStreaming,
+    pendingApproval: s.pendingApproval,
+    sessionId: s.sessionId,
+    selectedPlugin: s.selectedPlugin,
+    isTranscriptView: s.isTranscriptView,
+    clearTranscriptView: s.clearTranscriptView,
+  })));
   const { executeSkill, respondToApproval, stopStream } = useSkillStream();
   const { lang } = useLangStore();
   const {

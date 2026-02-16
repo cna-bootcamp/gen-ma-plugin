@@ -8,6 +8,9 @@ import { DMAP_PROJECT_DIR } from '../config.js';
 import { resolveProjectDir, markSetupCompleted } from '../services/plugin-manager.js';
 import fs from 'fs';
 import path from 'path';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('Skills');
 
 export const skillsRouter = Router();
 
@@ -126,14 +129,14 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
     // Abort any existing execution for this session
     const existingController = activeExecutions.get(session.id);
     if (existingController) {
-      console.log(`[SSE] Aborting previous execution for prompt session ${session.id}`);
+      log.info(`Aborting previous execution for prompt session ${session.id}`);
       existingController.abort();
     }
     const abortController = new AbortController();
     activeExecutions.set(session.id, abortController);
 
     req.on('close', () => {
-      console.log(`[SSE] Client disconnected from prompt session ${session.id}, aborting query`);
+      log.info(`Client disconnected from prompt session ${session.id}, aborting query`);
       abortController.abort();
     });
 
@@ -217,14 +220,14 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
   // Abort any existing execution for this session
   const existingController = activeExecutions.get(session.id);
   if (existingController) {
-    console.log(`[SSE] Aborting previous execution for skill session ${session.id}`);
+    log.info(`Aborting previous execution for skill session ${session.id}`);
     existingController.abort();
   }
   const abortController = new AbortController();
   activeExecutions.set(session.id, abortController);
 
   req.on('close', () => {
-    console.log(`[SSE] Client disconnected from session ${session.id}, aborting query`);
+    log.info(`Client disconnected from session ${session.id}, aborting query`);
     abortController.abort();
   });
 
@@ -244,11 +247,11 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
             const targetSkill = skills.find((s) => s.name === changeEvent.newSkillName);
 
             if (!targetSkill) {
-              console.warn(`[Skills] Skill chain target not found: ${changeEvent.newSkillName}, ignoring`);
+              log.warn(`Skill chain target not found: ${changeEvent.newSkillName}, ignoring`);
               return; // Don't send the event, don't complete old session
             }
 
-            console.log(`[Skills] Skill chain: ${skillName} → ${changeEvent.newSkillName}`);
+            log.info(`Skill chain: ${skillName} → ${changeEvent.newSkillName}`);
 
             // Complete current session
             sessionManager.setStatus(session.id, 'completed');

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/appStore.js';
 import { SkillCard } from './SkillCard.js';
 import { SettingsMenu } from './SettingsMenu.js';
@@ -12,7 +13,18 @@ import { SKILL_CATEGORIES, PROMPT_SKILL } from '@dmap-web/shared';
 import type { SkillMeta } from '@dmap-web/shared';
 
 export function Sidebar() {
-  const { skills, selectedSkill, selectSkill, isStreaming, fetchSkills, selectedPlugin, fetchPlugins, syncAgents, pendingApproval, setPendingSkillSwitch } = useAppStore();
+  const { skills, selectedSkill, selectSkill, isStreaming, fetchSkills, selectedPlugin, fetchPlugins, syncAgents, pendingApproval, setPendingSkillSwitch } = useAppStore(useShallow((s) => ({
+    skills: s.skills,
+    selectedSkill: s.selectedSkill,
+    selectSkill: s.selectSkill,
+    isStreaming: s.isStreaming,
+    fetchSkills: s.fetchSkills,
+    selectedPlugin: s.selectedPlugin,
+    fetchPlugins: s.fetchPlugins,
+    syncAgents: s.syncAgents,
+    pendingApproval: s.pendingApproval,
+    setPendingSkillSwitch: s.setPendingSkillSwitch,
+  })));
   const { lang } = useLangStore();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'fail'>('idle');

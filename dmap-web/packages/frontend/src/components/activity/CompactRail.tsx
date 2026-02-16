@@ -1,8 +1,15 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useActivityStore } from '../../stores/activityStore.js';
 import { useAppStore } from '../../stores/appStore.js';
 
 export function CompactRail() {
-  const { togglePanel, toolEvents, agentEvents, executionStartTime, executionEndTime } = useActivityStore();
+  const { togglePanel, toolEvents, agentEvents, executionStartTime, executionEndTime } = useActivityStore(useShallow((s) => ({
+    togglePanel: s.togglePanel,
+    toolEvents: s.toolEvents,
+    agentEvents: s.agentEvents,
+    executionStartTime: s.executionStartTime,
+    executionEndTime: s.executionEndTime,
+  })));
   const { isStreaming } = useAppStore();
 
   const toolCount = toolEvents.length;

@@ -17,12 +17,17 @@ export function ApprovalDialog({ approval, onRespond }: ApprovalDialogProps) {
   const t = useT();
 
   return (
-    <div className="border-t border-gray-200 dark:border-gray-800 bg-amber-50 dark:bg-amber-900/10 p-6">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="approval-dialog-title"
+      className="border-t border-gray-200 dark:border-gray-800 bg-amber-50 dark:bg-amber-900/10 p-6"
+    >
       <div className="max-w-2xl mx-auto">
         <div className="flex items-start gap-3 mb-4">
           <span className="text-2xl">{'\u{1F4AC}'}</span>
           <div>
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{t('approval.title')}</h3>
+            <h3 id="approval-dialog-title" className="font-semibold text-gray-900 dark:text-gray-100">{t('approval.title')}</h3>
             <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{approval.question}</p>
           </div>
         </div>

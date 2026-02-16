@@ -47,8 +47,8 @@ sessionsRouter.post('/:id/respond', (req, res) => {
 });
 
 // DELETE /api/sessions/:id - Delete a session
-sessionsRouter.delete('/:id', (req, res) => {
-  const deleted = sessionManager.delete(req.params.id);
+sessionsRouter.delete('/:id', async (req, res) => {
+  const deleted = await sessionManager.delete(req.params.id);
   if (!deleted) {
     res.status(404).json({ error: 'Session not found' });
     return;

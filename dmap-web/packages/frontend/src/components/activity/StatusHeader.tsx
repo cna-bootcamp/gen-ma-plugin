@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/appStore.js';
 import { useActivityStore } from '../../stores/activityStore.js';
 import { useT } from '../../i18n/index.js';
@@ -6,7 +7,11 @@ import { formatElapsed } from '../../utils/format.js';
 
 export function StatusHeader() {
   const { isStreaming } = useAppStore();
-  const { executionStartTime, executionEndTime, togglePanel } = useActivityStore();
+  const { executionStartTime, executionEndTime, togglePanel } = useActivityStore(useShallow((s) => ({
+    executionStartTime: s.executionStartTime,
+    executionEndTime: s.executionEndTime,
+    togglePanel: s.togglePanel,
+  })));
   const t = useT();
   const [elapsed, setElapsed] = useState(0);
 

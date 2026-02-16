@@ -8,6 +8,9 @@ interface DraggableResizableDialogProps {
   minHeight?: number;
   storageKey?: string;
   onClose: () => void;
+  role?: string;
+  'aria-modal'?: boolean;
+  'aria-labelledby'?: string;
 }
 
 export function DraggableResizableDialog({
@@ -18,6 +21,9 @@ export function DraggableResizableDialog({
   minHeight = 280,
   storageKey,
   onClose,
+  role,
+  'aria-modal': ariaModal,
+  'aria-labelledby': ariaLabelledby,
 }: DraggableResizableDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -148,6 +154,9 @@ export function DraggableResizableDialog({
         style={style}
         className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
         onMouseDown={onDragStart}
+        role={role}
+        aria-modal={ariaModal}
+        aria-labelledby={ariaLabelledby}
       >
         {children}
 

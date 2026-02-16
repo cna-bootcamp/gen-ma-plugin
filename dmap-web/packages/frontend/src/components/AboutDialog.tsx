@@ -11,12 +11,15 @@ export function AboutDialog({ version, onClose }: AboutDialogProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="about-dialog-title"
         className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full mx-4 p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-center mb-4">
           <div className="text-4xl mb-2">{'\u{1F528}'}</div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">DMAP Builder</h2>
+          <h2 id="about-dialog-title" className="text-xl font-bold text-gray-900 dark:text-gray-100">DMAP Builder</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">v{version}</p>
         </div>
 

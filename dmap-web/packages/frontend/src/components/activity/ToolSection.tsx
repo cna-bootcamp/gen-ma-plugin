@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useActivityStore } from '../../stores/activityStore.js';
 import { useT } from '../../i18n/index.js';
 import { formatTime } from '../../utils/format.js';
@@ -20,7 +21,12 @@ function getToolColor(name: string): string {
 }
 
 export function ToolSection() {
-  const { toolView, setToolView, toolCounts, toolEvents } = useActivityStore();
+  const { toolView, setToolView, toolCounts, toolEvents } = useActivityStore(useShallow((s) => ({
+    toolView: s.toolView,
+    setToolView: s.setToolView,
+    toolCounts: s.toolCounts,
+    toolEvents: s.toolEvents,
+  })));
   const t = useT();
   const feedEndRef = useRef<HTMLDivElement>(null);
 

@@ -1,10 +1,14 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/appStore.js';
 import { useLangStore } from '../../stores/langStore.js';
 import { useT } from '../../i18n/index.js';
 import type { Translations } from '../../i18n/types.js';
 
 export function SkillInfoSection() {
-  const { selectedSkill, selectedPlugin } = useAppStore();
+  const { selectedSkill, selectedPlugin } = useAppStore(useShallow((s) => ({
+    selectedSkill: s.selectedSkill,
+    selectedPlugin: s.selectedPlugin,
+  })));
   const { lang } = useLangStore();
   const t = useT();
 

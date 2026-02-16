@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useActivityStore } from '../stores/activityStore.js';
 import { StatusHeader } from './activity/StatusHeader.js';
 import { ProgressSection } from './activity/ProgressSection.js';
@@ -12,7 +13,14 @@ import { useAppStore } from '../stores/appStore.js';
 import { useT } from '../i18n/index.js';
 
 export function ActivityPanel() {
-  const { panelMode, sectionStates, togglePanel, toggleSection, toolCounts, agentEvents } = useActivityStore();
+  const { panelMode, sectionStates, togglePanel, toggleSection, toolCounts, agentEvents } = useActivityStore(useShallow((s) => ({
+    panelMode: s.panelMode,
+    sectionStates: s.sectionStates,
+    togglePanel: s.togglePanel,
+    toggleSection: s.toggleSection,
+    toolCounts: s.toolCounts,
+    agentEvents: s.agentEvents,
+  })));
   const { selectedSkill } = useAppStore();
   const t = useT();
 

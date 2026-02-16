@@ -3,6 +3,9 @@ import path from 'path';
 import { DATA_DIR } from '../config.js';
 import type { OmcAgentDef } from './omc-integration.js';
 import { TIER_MODEL_MAP, parseFrontmatterField, parseYamlTier } from './agent-utils.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('AgentRegistry');
 
 const AGENTS_DIR = path.join(DATA_DIR, 'agents');
 
@@ -75,7 +78,7 @@ export function syncPluginAgents(pluginId: string, projectDir: string): { count:
     if (existsSync(existingFile)) {
       const existing = loadRegisteredAgents(pluginId);
       const names = Object.keys(existing);
-      console.log(`[AgentRegistry] No local agents found for ${pluginId}, keeping existing ${names.length} agents`);
+      log.info(`No local agents found for ${pluginId}, keeping existing ${names.length} agents`);
       return { count: names.length, agents: names };
     }
     return { count: 0, agents: [] };
@@ -103,7 +106,7 @@ export function syncPluginAgents(pluginId: string, projectDir: string): { count:
   writeFileSync(path.join(pluginDir, 'agents.json'), JSON.stringify(data, null, 2), 'utf-8');
 
   const agentNames = Object.keys(agentEntries);
-  console.log(`[AgentRegistry] Synced ${agentNames.length} agents for ${pluginId}: ${agentNames.join(', ')}`);
+  log.info(`Synced ${agentNames.length} agents for ${pluginId}: ${agentNames.join(', ')}`);
   return { count: agentNames.length, agents: agentNames };
 }
 
@@ -131,7 +134,7 @@ export function loadRegisteredAgents(pluginId: string): Record<string, OmcAgentD
 
     return agents;
   } catch (error) {
-    console.error(`[AgentRegistry] Failed to load agents for ${pluginId}:`, error);
+    log.error(`Failed to load agents for ${pluginId}:`, error);
     return {};
   }
 }
@@ -143,6 +146,6 @@ export function removeRegisteredAgents(pluginId: string): void {
   const pluginDir = path.join(AGENTS_DIR, pluginId);
   if (existsSync(pluginDir)) {
     rmSync(pluginDir, { recursive: true, force: true });
-    console.log(`[AgentRegistry] Removed agents for ${pluginId}`);
+    log.info(`Removed agents for ${pluginId}`);
   }
 }

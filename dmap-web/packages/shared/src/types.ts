@@ -49,6 +49,7 @@ export interface SSEApprovalEvent {
   sessionId: string;
   question: string;
   options: ApprovalOption[];
+  // TODO: multi-select 지원 시 활성화
   multiSelect?: boolean;
 }
 
@@ -110,28 +111,7 @@ export interface ActivityToolEvent {
   timestamp: string;
 }
 
-export interface ActivityAgentEvent {
-  id: string;
-  subagentType: string;
-  displayName: string;
-  model: string;
-  tier: 'low' | 'medium' | 'high';
-  description?: string;
-  status: 'active' | 'completed' | 'error';
-  startedAt: string;
-  completedAt?: string;
-}
-
 // Skill Types
-export interface SkillInput {
-  name: string;
-  label: string;
-  type: 'text' | 'textarea' | 'file' | 'select';
-  required?: boolean;
-  placeholder?: string;
-  options?: string[];
-}
-
 export interface SkillMeta {
   name: string;
   displayName: string;
@@ -139,7 +119,6 @@ export interface SkillMeta {
   icon: string;
   category: 'core' | 'setup' | 'utility' | 'external';
   hasApprovalGates: boolean;
-  inputs?: SkillInput[];
 }
 
 // Session Types
@@ -196,5 +175,4 @@ export interface SkillExecuteRequest {
 
 export interface SessionRespondRequest {
   response: string;
-  selectedOptions?: string[];
 }

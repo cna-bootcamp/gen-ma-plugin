@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/appStore.js';
 import { useLangStore } from '../stores/langStore.js';
 import { useT } from '../i18n/index.js';
@@ -13,7 +14,11 @@ interface AddPluginDialogProps {
 }
 
 export function AddPluginDialog({ onClose, onAdded }: AddPluginDialogProps) {
-  const { addPlugin, selectPlugin, fetchSkills } = useAppStore();
+  const { addPlugin, selectPlugin, fetchSkills } = useAppStore(useShallow((s) => ({
+    addPlugin: s.addPlugin,
+    selectPlugin: s.selectPlugin,
+    fetchSkills: s.fetchSkills,
+  })));
   const { lang } = useLangStore();
   const t = useT();
   const [pluginName, setPluginName] = useState('');
@@ -118,10 +123,18 @@ export function AddPluginDialog({ onClose, onAdded }: AddPluginDialogProps) {
   }, [onClose]);
 
   return (
-    <DraggableResizableDialog initialWidth={480} initialHeight={560} storageKey="add-plugin" onClose={onClose}>
+    <DraggableResizableDialog
+      initialWidth={480}
+      initialHeight={560}
+      storageKey="add-plugin"
+      onClose={onClose}
+      role="dialog"
+      aria-modal={true}
+      aria-labelledby="add-plugin-dialog-title"
+    >
         {/* Header */}
         <div data-drag-handle className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 cursor-move flex-shrink-0">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h2 id="add-plugin-dialog-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {t('plugin.add')}
           </h2>
         </div>

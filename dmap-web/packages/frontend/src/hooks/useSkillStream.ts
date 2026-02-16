@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/appStore.js';
 import { useT } from '../i18n/index.js';
 import { useLangStore } from '../stores/langStore.js';
@@ -15,7 +16,15 @@ export function useSkillStream() {
     setPendingApproval,
     fetchSkills,
     switchSkillChain,
-  } = useAppStore();
+  } = useAppStore(useShallow((s) => ({
+    setSessionId: s.setSessionId,
+    addMessage: s.addMessage,
+    appendToLastMessage: s.appendToLastMessage,
+    setStreaming: s.setStreaming,
+    setPendingApproval: s.setPendingApproval,
+    fetchSkills: s.fetchSkills,
+    switchSkillChain: s.switchSkillChain,
+  })));
 
   const t = useT();
   const abortRef = useRef<AbortController | null>(null);
@@ -202,13 +211,15 @@ export function useSkillStream() {
             let eventType = '';
             let data = '';
 
+            const dataLines: string[] = [];
             for (const line of lines) {
               if (line.startsWith('event: ')) {
                 eventType = line.slice(7).trim();
               } else if (line.startsWith('data: ')) {
-                data = line.slice(6);
+                dataLines.push(line.slice(6));
               }
             }
+            data = dataLines.join('\n');
 
             if (!eventType || !data) continue;
 

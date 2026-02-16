@@ -1,10 +1,18 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/appStore.js';
 import { useActivityStore } from '../../stores/activityStore.js';
 import { useT } from '../../i18n/index.js';
 
 export function ProgressSection() {
-  const { isStreaming, selectedSkill } = useAppStore();
-  const { executionStartTime, executionEndTime, progressSteps } = useActivityStore();
+  const { isStreaming, selectedSkill } = useAppStore(useShallow((s) => ({
+    isStreaming: s.isStreaming,
+    selectedSkill: s.selectedSkill,
+  })));
+  const { executionStartTime, executionEndTime, progressSteps } = useActivityStore(useShallow((s) => ({
+    executionStartTime: s.executionStartTime,
+    executionEndTime: s.executionEndTime,
+    progressSteps: s.progressSteps,
+  })));
   const t = useT();
 
   if (!selectedSkill) {

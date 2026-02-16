@@ -93,8 +93,6 @@ const ko: Translations = {
   'skill.add-ext-skill.desc': '외부 플러그인 연동 추가',
   'skill.remove-ext-skill.name': '플러그인 제거',
   'skill.remove-ext-skill.desc': '외부 플러그인 연동 제거',
-  'skill.ext-abra.name': 'Abra 연동',
-  'skill.ext-abra.desc': 'Dify AI Agent 개발 자동화 (abra 플러그인)',
   'skill.ext-github-release-manager.name': 'Release 관리',
   'skill.ext-github-release-manager.desc': 'GitHub Release 자동화 (github-release-manager 플러그인)',
 

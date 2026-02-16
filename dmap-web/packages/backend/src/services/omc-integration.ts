@@ -2,6 +2,9 @@ import { readdirSync, existsSync, readFileSync } from 'fs';
 import path from 'path';
 import os from 'os';
 import { parseFrontmatterField } from './agent-utils.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('OMC');
 
 export interface OmcAgentDef {
   description: string;
@@ -110,7 +113,7 @@ export async function loadOmcAgents(): Promise<Record<
 
     const latestVersion = findLatestVersion(basePath);
     if (!latestVersion) {
-      console.warn(
+      log.warn(
         'OMC not installed: no version found in',
         basePath
       );
@@ -119,7 +122,7 @@ export async function loadOmcAgents(): Promise<Record<
 
     const agentsDir = path.join(basePath, latestVersion, 'agents');
     if (!existsSync(agentsDir)) {
-      console.warn(
+      log.warn(
         'OMC agents directory not found:',
         agentsDir
       );
@@ -155,12 +158,12 @@ export async function loadOmcAgents(): Promise<Record<
       };
     }
 
-    console.log(
+    log.info(
       `Loaded ${Object.keys(agents).length} OMC agents from ${latestVersion}`
     );
     return agents;
   } catch (error) {
-    console.error('Failed to load OMC agents:', error);
+    log.error('Failed to load OMC agents:', error);
     return null;
   }
 }

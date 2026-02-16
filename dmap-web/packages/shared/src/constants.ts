@@ -84,4 +84,3 @@ export const SKILL_CATEGORIES = {
 } as const;
 
 export const API_BASE = '/api';
-export const SSE_RETRY_MS = 3000;

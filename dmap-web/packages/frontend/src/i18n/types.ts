@@ -89,8 +89,6 @@ export interface Translations {
   'skill.add-ext-skill.desc': string;
   'skill.remove-ext-skill.name': string;
   'skill.remove-ext-skill.desc': string;
-  'skill.ext-abra.name': string;
-  'skill.ext-abra.desc': string;
   'skill.ext-github-release-manager.name': string;
   'skill.ext-github-release-manager.desc': string;
 

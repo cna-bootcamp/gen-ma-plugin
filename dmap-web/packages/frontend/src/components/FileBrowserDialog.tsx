@@ -82,10 +82,18 @@ export function FileBrowserDialog({ onSelect, onClose }: FileBrowserDialogProps)
   };
 
   return (
-    <DraggableResizableDialog initialWidth={520} initialHeight={500} storageKey="file-browser" onClose={onClose}>
+    <DraggableResizableDialog
+      initialWidth={520}
+      initialHeight={500}
+      storageKey="file-browser"
+      onClose={onClose}
+      role="dialog"
+      aria-modal={true}
+      aria-labelledby="file-browser-dialog-title"
+    >
         {/* Header */}
         <div data-drag-handle className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-move flex-shrink-0">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h2 id="file-browser-dialog-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {t('fileBrowser.title')}
           </h2>
           {selectedPaths.size > 0 && (

@@ -4,6 +4,9 @@ import os from 'os';
 import { createReadStream } from 'fs';
 import readline from 'readline';
 import { DMAP_PROJECT_DIR } from '../config.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('Transcript');
 
 export interface TranscriptSession {
   id: string;           // filename without .jsonl
@@ -124,7 +127,7 @@ export async function listTranscriptSessions(): Promise<TranscriptSession[]> {
         });
       } catch (err) {
         // Skip files that can't be read
-        console.error(`[TranscriptService] Failed to read ${file}:`, err);
+        log.error(`Failed to read ${file}:`, err);
       }
     }
 
@@ -135,7 +138,7 @@ export async function listTranscriptSessions(): Promise<TranscriptSession[]> {
 
     return sessions;
   } catch (err) {
-    console.error('[TranscriptService] Failed to list sessions:', err);
+    log.error('Failed to list sessions:', err);
     return [];
   }
 }

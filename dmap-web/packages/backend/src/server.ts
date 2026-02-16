@@ -10,6 +10,9 @@ import { pluginsRouter } from './routes/plugins.js';
 import { filesystemRouter } from './routes/filesystem.js';
 import { transcriptsRouter } from './routes/transcripts.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { createLogger } from './utils/logger.js';
+
+const log = createLogger('Server');
 
 const app = express();
 
@@ -32,9 +35,24 @@ app.use('/api/transcripts', transcriptsRouter);
 // Error handler (must be last)
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`[DMAP Web] Backend running on http://localhost:${PORT}`);
-  console.log(`[DMAP Web] DMAP project dir: ${DMAP_PROJECT_DIR}`);
+const server = app.listen(PORT, () => {
+  log.info(`Backend running on http://localhost:${PORT}`);
+  log.info(`DMAP project dir: ${DMAP_PROJECT_DIR}`);
 });
+
+function gracefulShutdown(signal: string) {
+  log.info(`${signal} received. Shutting down gracefully...`);
+  server.close(() => {
+    log.info('HTTP server closed');
+    process.exit(0);
+  });
+  setTimeout(() => {
+    log.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10_000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 export default app;

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/appStore.js';
 import { useToastStore } from '../stores/toastStore.js';
 import { useT } from '../i18n/index.js';
@@ -10,7 +11,13 @@ interface PluginSwitcherProps {
 }
 
 export function PluginSwitcher({ disabled }: PluginSwitcherProps) {
-  const { plugins, selectedPlugin, selectPlugin, removePlugin, fetchSkills } = useAppStore();
+  const { plugins, selectedPlugin, selectPlugin, removePlugin, fetchSkills } = useAppStore(useShallow((s) => ({
+    plugins: s.plugins,
+    selectedPlugin: s.selectedPlugin,
+    selectPlugin: s.selectPlugin,
+    removePlugin: s.removePlugin,
+    fetchSkills: s.fetchSkills,
+  })));
   const { lang } = useLangStore();
   const [open, setOpen] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);

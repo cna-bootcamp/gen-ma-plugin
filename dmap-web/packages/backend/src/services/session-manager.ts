@@ -1,8 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Session, SessionUsage } from '@dmap-web/shared';
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import { DMAP_PROJECT_DIR } from '../config.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('SessionManager');
 
 interface InternalSession extends Session {
   pendingResponse?: {
@@ -14,20 +17,42 @@ interface InternalSession extends Session {
 class SessionManager {
   private sessions = new Map<string, InternalSession>();
   private readonly TIMEOUT = 60 * 60 * 1000; // 1 hour for in-memory cleanup
+  private readonly SWEEP_INTERVAL = 10 * 60 * 1000; // 10 minutes
   private readonly sessionsDir: string;
 
   constructor() {
     this.sessionsDir = path.join(DMAP_PROJECT_DIR, '.dmap', 'sessions');
-    fs.mkdirSync(this.sessionsDir, { recursive: true });
-    this.loadFromDisk();
+    // init async in background
+    this.init();
   }
 
-  private loadFromDisk(): void {
+  private async init(): Promise<void> {
+    await fs.mkdir(this.sessionsDir, { recursive: true });
+    await this.loadFromDisk();
+    // Single sweep interval for all sessions
+    setInterval(() => this.sweepExpired(), this.SWEEP_INTERVAL);
+  }
+
+  private sweepExpired(): void {
+    const now = Date.now();
+    for (const [id, session] of this.sessions) {
+      const inactive = now - new Date(session.lastActivity).getTime();
+      if (inactive > this.TIMEOUT) {
+        if (session.pendingResponse) {
+          session.pendingResponse.reject(new Error('Session timed out'));
+        }
+        this.sessions.delete(id);
+        // Don't delete from disk - keep for history
+      }
+    }
+  }
+
+  private async loadFromDisk(): Promise<void> {
     try {
-      const files = fs.readdirSync(this.sessionsDir).filter(f => f.endsWith('.json'));
+      const files = (await fs.readdir(this.sessionsDir)).filter(f => f.endsWith('.json'));
       for (const file of files) {
         try {
-          const data = JSON.parse(fs.readFileSync(path.join(this.sessionsDir, file), 'utf-8'));
+          const data = JSON.parse(await fs.readFile(path.join(this.sessionsDir, file), 'utf-8'));
           // Don't restore runtime-only fields
           delete data.pendingResponse;
           this.sessions.set(data.id, data);
@@ -35,22 +60,22 @@ class SessionManager {
           // Skip corrupted files
         }
       }
-      console.log(`[SessionManager] Loaded ${files.length} sessions from disk`);
+      log.info(`Loaded ${files.length} sessions from disk`);
     } catch {
       // Directory might not exist yet
     }
   }
 
-  private saveToDisk(session: InternalSession): void {
+  private async saveToDisk(session: InternalSession): Promise<void> {
     try {
       const { pendingResponse: _, ...data } = session;
-      fs.writeFileSync(
+      await fs.writeFile(
         path.join(this.sessionsDir, `${session.id}.json`),
         JSON.stringify(data, null, 2),
         'utf-8'
       );
     } catch (err) {
-      console.error(`[SessionManager] Failed to save session ${session.id}:`, err);
+      log.error(`Failed to save session ${session.id}:`, err);
     }
   }
 
@@ -65,7 +90,6 @@ class SessionManager {
     };
     this.sessions.set(session.id, session);
     this.saveToDisk(session);
-    this.scheduleCleanup(session.id);
     return session;
   }
 
@@ -137,10 +161,10 @@ class SessionManager {
 
     session.status = 'aborted';
     session.lastActivity = new Date().toISOString();
-    console.log(`[SessionManager] Session ${id} aborted`);
+    log.info(`Session ${id} aborted`);
   }
 
-  delete(id: string): boolean {
+  async delete(id: string): Promise<boolean> {
     const session = this.sessions.get(id);
     if (!session) return false;
     if (session.pendingResponse) {
@@ -150,7 +174,7 @@ class SessionManager {
     // Remove from disk
     try {
       const filePath = path.join(this.sessionsDir, `${id}.json`);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      await fs.unlink(filePath);
     } catch { /* ignore */ }
     return true;
   }
@@ -161,24 +185,6 @@ class SessionManager {
       .sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
   }
 
-  private scheduleCleanup(id: string): void {
-    setTimeout(() => {
-      const session = this.sessions.get(id);
-      if (session) {
-        const inactive =
-          Date.now() - new Date(session.lastActivity).getTime();
-        if (inactive > this.TIMEOUT) {
-          if (session.pendingResponse) {
-            session.pendingResponse.reject(new Error('Session timed out'));
-          }
-          this.sessions.delete(id);
-          // Note: don't delete from disk - keep for history
-        } else {
-          this.scheduleCleanup(id);
-        }
-      }
-    }, this.TIMEOUT);
-  }
 }
 
 export const sessionManager = new SessionManager();

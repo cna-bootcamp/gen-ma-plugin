@@ -3,10 +3,13 @@ import path from 'path';
 import type { SSEEvent, QuestionItem } from '@dmap-web/shared';
 import { loadOmcAgents, getSkillPatterns, type OmcAgentDef } from './omc-integration.js';
 import { loadRegisteredAgents } from './agent-registry.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('SDK');
 
 type LogFn = (label: string, data?: unknown) => Promise<void>;
 
-async function createLogger(dmapProjectDir: string, skillName: string): Promise<LogFn> {
+async function createFileLogger(dmapProjectDir: string, skillName: string): Promise<LogFn> {
   const logsDir = path.join(dmapProjectDir, '.dmap', 'logs');
   await mkdir(logsDir, { recursive: true });
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -112,7 +115,7 @@ function extractAskUserBlocks(text: string): { cleanText: string; title: string;
       if (parsed.title) title = parsed.title;
       if (Array.isArray(parsed.questions)) allQuestions.push(...parsed.questions);
     } catch (e) {
-      console.error('[SDK] Failed to parse ASK_USER JSON:', e);
+      log.error('Failed to parse ASK_USER JSON:', e);
     }
   }
 
@@ -204,7 +207,7 @@ async function runQuery(
   options: Record<string, unknown>,
   callbacks: StreamCallbacks,
   externalAbortController?: AbortController,
-  log?: LogFn,
+  fileLog?: LogFn,
 ): Promise<RunQueryResult> {
   const { query } = await import('@anthropic-ai/claude-code');
 
@@ -222,8 +225,8 @@ async function runQuery(
   })) {
     if (abortController.signal.aborted) break;
 
-    console.log(`[SDK] message.type=${message.type}`, JSON.stringify(message).slice(0, 500));
-    await log?.(`message.type=${message.type}`, message);
+    log.info(`message.type=${message.type}`, JSON.stringify(message).slice(0, 500));
+    await fileLog?.(`message.type=${message.type}`, message);
 
     // Capture session ID from system init
     if (message.type === 'system') {
@@ -243,8 +246,8 @@ async function runQuery(
             // Detect skill chain command (e.g., /dmap:develop-plugin)
             const chainCommand = detectSkillChainCommand(block.text);
             if (chainCommand) {
-              console.log(`[SDK] Detected skill chain: → ${chainCommand.skillName}`);
-              await log?.('skill_chain_detected', chainCommand);
+              log.info(`Detected skill chain: → ${chainCommand.skillName}`);
+              await fileLog?.('skill_chain_detected', chainCommand);
               callbacks.onEvent({
                 type: 'skill_changed',
                 newSkillName: chainCommand.skillName,
@@ -262,8 +265,8 @@ async function runQuery(
                 callbacks.onEvent({ type: 'text', text: extracted.cleanText });
               }
               pendingQuestions = { title: extracted.title, questions: extracted.questions };
-              console.log(`[SDK] Parsed ${extracted.questions.length} structured questions`);
-              await log?.('parsed_questions', pendingQuestions);
+              log.info(`Parsed ${extracted.questions.length} structured questions`);
+              await fileLog?.('parsed_questions', pendingQuestions);
             } else {
               hasContent = true;
               callbacks.onEvent({ type: 'text', text: block.text });
@@ -272,8 +275,8 @@ async function runQuery(
             if (block.name === 'AskUserQuestion') {
               // AskUserQuestion detected - abort is REQUIRED to prevent CLI deadlock
               // (CLI waits for tool_result indefinitely without abort)
-              console.warn(`[SDK] AskUserQuestion tool detected. Aborting and converting to pendingQuestions.`);
-              await log?.('askUserQuestion_converted', block.input);
+              log.warn('AskUserQuestion tool detected. Aborting and converting to pendingQuestions.');
+              await fileLog?.('askUserQuestion_converted', block.input);
 
               // Convert AskUserQuestion data to pendingQuestions format
               const askInput = block.input as Record<string, unknown> | undefined;
@@ -387,9 +390,9 @@ export async function executeSkill(
   let skillContent = '';
   try {
     skillContent = await readFile(skillPath, 'utf-8');
-    console.log(`[SDK] Loaded SKILL.md for "${skillName}" (${skillContent.length} chars)`);
+    log.info(`Loaded SKILL.md for "${skillName}" (${skillContent.length} chars)`);
   } catch {
-    console.error(`[SDK] SKILL.md not found at ${skillPath}`);
+    log.error(`SKILL.md not found at ${skillPath}`);
     callbacks.onEvent({ type: 'error', message: `Skill "${skillName}" not found` });
     return { fullyComplete: true };
   }
@@ -397,14 +400,14 @@ export async function executeSkill(
   // Parse steps from SKILL.md for progress tracking
   const parsedSkillSteps = parseSkillSteps(skillContent);
   if (parsedSkillSteps) {
-    console.log(`[SDK] Parsed ${parsedSkillSteps.steps.length} ${parsedSkillSteps.isPhaseMode ? 'phases' : 'steps'} from SKILL.md`);
+    log.info(`Parsed ${parsedSkillSteps.steps.length} ${parsedSkillSteps.isPhaseMode ? 'phases' : 'steps'} from SKILL.md`);
     callbacks.onEvent({ type: 'progress', steps: parsedSkillSteps.steps, activeStep: 1 });
   }
 
   // Load all agents (OMC + plugin)
   const { omcAgents, pluginAgentCount, allAgents, allAgentCount, pluginAgentGuide: basePluginGuide } = await loadAllAgents(pluginId);
-  if (omcAgents) console.log(`[SDK] Loaded ${Object.keys(omcAgents).length} OMC agents`);
-  if (pluginAgentCount > 0) console.log(`[SDK] Loaded ${pluginAgentCount} registered agents for plugin "${pluginId}"`);
+  if (omcAgents) log.info(`Loaded ${Object.keys(omcAgents).length} OMC agents`);
+  if (pluginAgentCount > 0) log.info(`Loaded ${pluginAgentCount} registered agents for plugin "${pluginId}"`);
 
   // Enrich plugin agent guide with usage example for skill context
   const pluginAgentGuide = pluginAgentCount > 0
@@ -441,11 +444,11 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
   // Payload size diagnostics (Windows 32KB CLI limit)
   const agentsSize = options.agents ? JSON.stringify(options.agents).length : 0;
   const promptSize = typeof options.appendSystemPrompt === 'string' ? (options.appendSystemPrompt as string).length : 0;
-  console.log(`[SDK] Payload: agents=${agentsSize}B, systemPrompt=${promptSize}B, total=${agentsSize + promptSize}B`);
+  log.info(`Payload: agents=${agentsSize}B, systemPrompt=${promptSize}B, total=${agentsSize + promptSize}B`);
 
   try {
-    const log = await createLogger(dmapProjectDir, skillName);
-    await log('options', { model: options.model, maxTurns: options.maxTurns, resumeSessionId, disallowedTools: options.disallowedTools, hasAppendSystemPrompt: !!options.appendSystemPrompt, omcAgentCount: omcAgents ? Object.keys(omcAgents).length : 0, pluginAgentCount, totalAgentCount: allAgentCount, payloadBytes: agentsSize + promptSize });
+    const fileLog = await createFileLogger(dmapProjectDir, skillName);
+    await fileLog('options', { model: options.model, maxTurns: options.maxTurns, resumeSessionId, disallowedTools: options.disallowedTools, hasAppendSystemPrompt: !!options.appendSystemPrompt, omcAgentCount: omcAgents ? Object.keys(omcAgents).length : 0, pluginAgentCount, totalAgentCount: allAgentCount, payloadBytes: agentsSize + promptSize });
 
     const isEnglish = lang && lang !== 'ko';
     const fileAttachment = buildFileAttachment(filePaths, !!isEnglish);
@@ -455,7 +458,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
       // Resume with user's answer
       currentPrompt = isEnglish ? `${input}\n\nRespond in English.` : input;
       currentPrompt += fileAttachment;
-      console.log(`[SDK] Resuming session with user input for "${skillName}"`);
+      log.info(`Resuming session with user input for "${skillName}"`);
     } else if (resumeSessionId) {
       // Resume without explicit user input - provide continuation instruction
       // IMPORTANT: Generic "execute skill" prompt causes model to think work is done.
@@ -464,7 +467,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
         ? 'The previous session was interrupted. Continue executing the skill from where you left off. Do not repeat completed work. Respond in English.'
         : '이전 세션이 중단되었습니다. 중단된 지점부터 스킬 실행을 이어서 계속하세요. 이미 완료된 작업은 반복하지 마세요.';
       currentPrompt += fileAttachment;
-      console.log(`[SDK] Resuming session without user input for "${skillName}" - using continuation prompt`);
+      log.info(`Resuming session without user input for "${skillName}" - using continuation prompt`);
     } else {
       // Fresh start
       currentPrompt = input
@@ -475,7 +478,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
           ? `Execute the skill instructions in the system prompt. Respond in English.`
           : `시스템 프롬프트의 스킬 지시사항을 실행하세요.`);
       currentPrompt += fileAttachment;
-      console.log(`[SDK] Prompt: ${currentPrompt}`);
+      log.info(`Prompt: ${currentPrompt}`);
     }
 
     let sdkSessionId = resumeSessionId;
@@ -506,7 +509,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
       const opts: Record<string, unknown> = { ...options };
       if (sdkSessionId) opts.resume = sdkSessionId;
 
-      const result = await runQuery(currentPrompt, opts, trackingCallbacks, abortController, log);
+      const result = await runQuery(currentPrompt, opts, trackingCallbacks, abortController, fileLog);
       sdkSessionId = result.sdkSessionId || sdkSessionId;
 
       // Update SDK session ID for future resume
@@ -529,7 +532,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
       // Auto-continue if turns exhausted and no pending questions
       if (!hasPendingQuestions && turnsExhausted && autoContinueCount < MAX_AUTO_CONTINUES) {
         autoContinueCount++;
-        console.log(`[SDK] Turns exhausted (${result.numTurns}/${maxTurns}), auto-continuing (${autoContinueCount}/${MAX_AUTO_CONTINUES})`);
+        log.info(`Turns exhausted (${result.numTurns}/${maxTurns}), auto-continuing (${autoContinueCount}/${MAX_AUTO_CONTINUES})`);
         currentPrompt = isEnglish
           ? 'Continue executing the skill from where you left off. Do not repeat completed work. Respond in English.'
           : '이전 작업을 이어서 계속 진행하세요. 중단된 지점부터 재개합니다.';
@@ -538,7 +541,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
 
       // No askUserQuestion and no pendingQuestions → skill fully complete
       const fullyComplete = !hasPendingQuestions;
-      console.log(`[SDK] Skill execution completed (fullyComplete=${fullyComplete}, numTurns=${result.numTurns}, autoContinues=${autoContinueCount})`);
+      log.info(`Skill execution completed (fullyComplete=${fullyComplete}, numTurns=${result.numTurns}, autoContinues=${autoContinueCount})`);
 
       // Mark all progress steps as complete when skill finishes
       if (parsedSkillSteps && fullyComplete) {
@@ -549,10 +552,10 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
     }
   } catch (error: unknown) {
     if (abortController?.signal.aborted) {
-      console.log(`[SDK] Skill execution aborted for "${skillName}"`);
+      log.info(`Skill execution aborted for "${skillName}"`);
       return { fullyComplete: true };
     }
-    console.error(`[SDK] Error:`, error);
+    log.error('Error:', error);
     callbacks.onEvent({
       type: 'error',
       message: (error as Error).message || 'Claude SDK execution failed',
@@ -573,7 +576,7 @@ export async function executePrompt(
 ): Promise<ExecuteSkillResult> {
   // Load all agents (OMC + plugin)
   const { omcAgents, allAgents, allAgentCount, pluginAgentGuide } = await loadAllAgents(pluginId);
-  if (omcAgents) console.log(`[SDK] Loaded ${Object.keys(omcAgents).length} OMC agents for prompt mode`);
+  if (omcAgents) log.info(`Loaded ${Object.keys(omcAgents).length} OMC agents for prompt mode`);
 
   const isEnglish = lang && lang !== 'ko';
 
@@ -594,7 +597,7 @@ ${ASK_USER_INSTRUCTION}`,
   }
 
   try {
-    const log = await createLogger(dmapProjectDir, '__prompt__');
+    const fileLog = await createFileLogger(dmapProjectDir, '__prompt__');
 
     const fileAttachment = buildFileAttachment(filePaths, !!isEnglish);
 
@@ -610,9 +613,9 @@ ${ASK_USER_INSTRUCTION}`,
     }
     currentPrompt += fileAttachment;
 
-    console.log(`[SDK] Prompt mode: ${currentPrompt.slice(0, 100)}...`);
+    log.info(`Prompt mode: ${currentPrompt.slice(0, 100)}...`);
 
-    const result = await runQuery(currentPrompt, options, callbacks, abortController, log);
+    const result = await runQuery(currentPrompt, options, callbacks, abortController, fileLog);
 
     if (result.sdkSessionId) {
       callbacks.onSessionId?.(result.sdkSessionId);
@@ -630,10 +633,10 @@ ${ASK_USER_INSTRUCTION}`,
     return { fullyComplete };
   } catch (error: unknown) {
     if (abortController?.signal.aborted) {
-      console.log(`[SDK] Prompt execution aborted`);
+      log.info('Prompt execution aborted');
       return { fullyComplete: true };
     }
-    console.error(`[SDK] Prompt error:`, error);
+    log.error('Prompt error:', error);
     callbacks.onEvent({ type: 'error', message: (error as Error).message || 'Prompt execution failed' });
     return { fullyComplete: true };
   }

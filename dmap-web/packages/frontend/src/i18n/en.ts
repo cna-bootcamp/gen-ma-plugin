@@ -93,8 +93,6 @@ const en: Translations = {
   'skill.add-ext-skill.desc': 'Add external plugin integration',
   'skill.remove-ext-skill.name': 'Remove Plugin',
   'skill.remove-ext-skill.desc': 'Remove external plugin integration',
-  'skill.ext-abra.name': 'Abra Integration',
-  'skill.ext-abra.desc': 'Dify AI Agent development automation (abra plugin)',
   'skill.ext-github-release-manager.name': 'Release Manager',
   'skill.ext-github-release-manager.desc': 'GitHub Release automation (github-release-manager plugin)',
 

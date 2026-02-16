@@ -51,10 +51,15 @@ export function QuestionFormDialog({ title, questions, onSubmit, onClose }: Ques
   const filledCount = questions.filter((_, i) => answers[i]?.trim()).length;
 
   return (
-    <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="question-form-dialog-title"
+      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
+    >
       {/* Header */}
       <div className="px-6 pt-4 pb-2">
-        <h3 className="font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+        <h3 id="question-form-dialog-title" className="font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
           {t('question.filled', { filled: filledCount, total: questions.length })}
         </p>

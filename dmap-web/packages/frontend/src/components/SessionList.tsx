@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/appStore.js';
 import { useT } from '../i18n/index.js';
 import type { Translations } from '../i18n/types.js';
@@ -33,7 +34,12 @@ interface SessionListProps {
 }
 
 export function SessionList({ skillName }: SessionListProps) {
-  const { sessions, fetchSessions, isStreaming, loadTranscriptSession } = useAppStore();
+  const { sessions, fetchSessions, isStreaming, loadTranscriptSession } = useAppStore(useShallow((s) => ({
+    sessions: s.sessions,
+    fetchSessions: s.fetchSessions,
+    isStreaming: s.isStreaming,
+    loadTranscriptSession: s.loadTranscriptSession,
+  })));
   const t = useT();
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSession[]>([]);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
