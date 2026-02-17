@@ -1,5 +1,20 @@
+/**
+ * 메인 애플리케이션 스토어 (Zustand) - 전역 상태 및 API 액션 관리
+ *
+ * 관리 영역:
+ * - 플러그인: 목록, 선택, 추가/삭제, 에이전트 동기화
+ * - 스킬: 목록, 선택, 메뉴 설정
+ * - 세션: 현재 세션, 메시지, 스트리밍 상태, 이력
+ * - 승인: 사용자 응답 대기 (ApprovalDialog, QuestionFormDialog)
+ * - 스킬 체인: 스킬 전환 시 세션/메시지 전이
+ *
+ * activityStore 연동: selectPlugin/selectSkill/switchSkillChain 시 clearActivity() 호출
+ * localStorage 연동: 선택된 플러그인 ID 영속화 (SELECTED_PLUGIN_KEY)
+ *
+ * @module stores/appStore
+ */
 import { create } from 'zustand';
-import type { ChatMessage, SkillMeta, ApprovalOption, QuestionItem, PluginInfo, Session } from '@dmap-web/shared';
+import type { ChatMessage, SkillMeta, ApprovalOption, QuestionItem, PluginInfo, Session, MenuConfig } from '@dmap-web/shared';
 import { PROMPT_SKILL, API_BASE } from '@dmap-web/shared';
 import { useActivityStore } from './activityStore.js';
 const SELECTED_PLUGIN_KEY = 'dmap-selected-plugin';
@@ -13,6 +28,11 @@ const DEFAULT_PLUGIN: PluginInfo = {
   projectDir: '',
 };
 
+/**
+ * 사용자 응답 대기 상태
+ * @property isTurnApproval - true면 턴 승인 바(TurnApprovalBar)로 표시
+ * @property parsedQuestions - ASK_USER에서 파싱된 구조화 질문 (QuestionFormDialog용)
+ */
 interface PendingApproval {
   id: string;
   question: string;
@@ -21,6 +41,7 @@ interface PendingApproval {
   parsedQuestions?: QuestionItem[];
 }
 
+/** 앱 전역 상태 + 액션 인터페이스 */
 interface AppState {
   // Plugins
   plugins: PluginInfo[];
@@ -29,6 +50,7 @@ interface AppState {
   // Skills
   skills: SkillMeta[];
   selectedSkill: SkillMeta | null;
+  menus: MenuConfig | null;
 
   // Session
   sessionId: string | null;
@@ -54,6 +76,8 @@ interface AppState {
   removePlugin: (pluginId: string) => Promise<void>;
   syncAgents: (pluginId: string) => Promise<{ count: number; agents: string[] }>;
   fetchSkills: () => Promise<void>;
+  fetchMenus: () => Promise<void>;
+  saveMenus: (menus: MenuConfig) => Promise<void>;
   selectSkill: (skill: SkillMeta) => void;
   setSessionId: (id: string) => void;
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
@@ -79,6 +103,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedPlugin: DEFAULT_PLUGIN,
   skills: [],
   selectedSkill: null,
+  menus: null,
   sessionId: null,
   messages: [],
   isStreaming: false,
@@ -94,7 +119,7 @@ export const useAppStore = create<AppState>((set) => ({
       if (res.ok) {
         const data: PluginInfo[] = await res.json();
         set((state) => {
-          // Restore last selected plugin or auto-select first
+          // localStorage에서 마지막 선택 플러그인 복원, 없으면 첫 번째 플러그인 자동 선택
           const storedId = localStorage.getItem(SELECTED_PLUGIN_KEY);
           const selected = (storedId && data.find((p) => p.id === storedId))
             || (state.selectedPlugin && data.find((p) => p.id === state.selectedPlugin!.id))
@@ -109,10 +134,12 @@ export const useAppStore = create<AppState>((set) => ({
 
   selectPlugin: (plugin) => {
     localStorage.setItem(SELECTED_PLUGIN_KEY, plugin.id);
+    // 플러그인 전환 시 전체 상태 초기화: 스킬/메시지/세션/승인/메뉴 + activityStore 클리어
     useActivityStore.getState().clearActivity();
-    set({ selectedPlugin: plugin, selectedSkill: null, messages: [], sessionId: null, pendingApproval: null, skills: [] });
+    set({ selectedPlugin: plugin, selectedSkill: null, messages: [], sessionId: null, pendingApproval: null, skills: [], menus: null });
   },
 
+  /** 새 플러그인 등록 → 에이전트 자동 동기화 → 플러그인 목록 새로고침 */
   addPlugin: async (projectDir: string, displayNames: { ko: string; en: string }) => {
     const res = await fetch(`${API_BASE}/plugins`, {
       method: 'POST',
@@ -128,6 +155,7 @@ export const useAppStore = create<AppState>((set) => ({
     return plugin;
   },
 
+  /** 플러그인 삭제 → 삭제된 플러그인이 선택 중이면 첫 번째 플러그인으로 자동 전환 */
   removePlugin: async (pluginId: string) => {
     const res = await fetch(`${API_BASE}/plugins/${pluginId}`, { method: 'DELETE' });
     if (!res.ok) {
@@ -147,7 +175,7 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   syncAgents: async (pluginId: string) => {
-    const res = await fetch(`${API_BASE}/plugins/${pluginId}/agents/sync`, {
+    const res = await fetch(`${API_BASE}/plugins/${pluginId}/sync`, {
       method: 'POST',
     });
     if (!res.ok) {
@@ -171,7 +199,35 @@ export const useAppStore = create<AppState>((set) => ({
     }
   },
 
+  fetchMenus: async () => {
+    try {
+      const pluginId = useAppStore.getState().selectedPlugin?.id;
+      if (!pluginId) return;
+      const res = await fetch(`${API_BASE}/plugins/${pluginId}/menus`);
+      if (res.ok) {
+        const data: MenuConfig = await res.json();
+        set({ menus: data });
+      }
+    } catch {
+      // Keep current menus on error
+    }
+  },
+
+  saveMenus: async (menus: MenuConfig) => {
+    const pluginId = useAppStore.getState().selectedPlugin?.id;
+    if (!pluginId) return;
+    const res = await fetch(`${API_BASE}/plugins/${pluginId}/menus`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(menus),
+    });
+    if (res.ok) {
+      set({ menus });
+    }
+  },
+
   selectSkill: (skill) => {
+    // 스킬 전환 시 메시지/세션/승인 초기화 + activityStore 클리어
     useActivityStore.getState().clearActivity();
     set({ selectedSkill: skill, messages: [], sessionId: null, pendingApproval: null, isTranscriptView: false });
   },
@@ -191,6 +247,7 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => {
       const msgs = [...state.messages];
       const last = msgs[msgs.length - 1];
+      // 마지막 메시지가 assistant면 텍스트 이어붙이기, 아니면 새 assistant 메시지 생성
       if (last && last.role === 'assistant') {
         msgs[msgs.length - 1] = { ...last, content: last.content + text };
       } else {
@@ -252,6 +309,7 @@ export const useAppStore = create<AppState>((set) => ({
     }
   },
 
+  /** 세션 이력에서 이전 세션 재개 - __prompt__ 세션은 PROMPT_SKILL로 매핑 */
   resumeSession: (session, skill) => {
     const targetSkill = session.skillName === '__prompt__'
       ? PROMPT_SKILL
@@ -270,6 +328,7 @@ export const useAppStore = create<AppState>((set) => ({
     });
   },
 
+  /** SDK 트랜스크립트 로드 - sdkSessionId로 dmap 세션 매핑하여 resume 지원 */
   loadTranscriptSession: async (transcriptId, summary) => {
     // transcriptId = sdkSessionId = JSONL filename
     // Find the dmap-web session linked to this sdkSessionId for resume
@@ -303,6 +362,7 @@ export const useAppStore = create<AppState>((set) => ({
     set({ isTranscriptView: false, messages: [], sessionId: null, pendingApproval: null });
   },
 
+  /** 스킬 체인 전환 - 새 스킬/세션으로 전환 + 전환 마커 메시지 추가 + activityStore 클리어 */
   switchSkillChain: (newSkill, newSessionId) => {
     useActivityStore.getState().clearActivity();
     set((state) => ({

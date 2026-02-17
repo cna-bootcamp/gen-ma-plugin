@@ -26,6 +26,7 @@ Gateway 도구를 직접 사용(직결형)하는 Controller+UseCase 레이어의
 |------|------|------|------|
 | `name` | ✅ | 스킬 ID (kebab-case) | `my-skill` |
 | `description` | ✅ | 한 줄 설명 | `코드 품질 분석 스킬` |
+| `type` | ✅ | 스킬유형 | core,setup,planning,orchestrator,utility,external |
 | `user-invocable` | 선택 | 사용자 직접 호출 가능 여부 (기본값: true) | `true` |
 | `disable-model-invocation` | 선택 | 런타임 자동 호출 차단. **주의: `true` 설정 시 스킬 로드 자체가 안 되므로 사용 금지** | `false` |
 | `allowed-tools` | 선택 | 허용 도구 목록 | `["Read", "Task"]` |
@@ -492,6 +493,7 @@ help 스킬은 호출 시에만 토큰을 사용하여 효율적임.
 ---
 name: setup
 description: 플러그인 초기 설정
+type: setup
 user-invocable: true
 ---
 ```
@@ -499,6 +501,7 @@ user-invocable: true
 > **주의**: `disable-model-invocation: true`를 설정하면 런타임이 스킬을 아예 로드하지 않아
 > 사용자가 `/my-plugin:setup`으로 호출해도 스킬을 찾을 수 없음.
 > Setup 스킬은 `user-invocable: true`만 설정하고 `disable-model-invocation`은 사용하지 않을 것.
+> name, description, type은 필수
 
 [Top](#skill-표준)
 
@@ -552,6 +555,21 @@ Planning 스킬은 요구사항의 명확도에 따라 세 가지 모드 중 하
 **모드 선택 가이드**: 요구사항 명확도를 기준으로 자동 판별하되, 사용자가 플래그(`--direct`, `--consensus`)로
 명시적 지정도 가능하게 설계함.
 
+#### frontmatter 권장 설정
+
+```yaml
+---
+name: {skill-name}
+description: {skill-description}
+type: planning
+user-invocable: true
+---
+```
+
+> **중요**: 사용자가 직접 호출하는 스킬만 user-invocable을 true로 하고 상위 스킬의 워크플로우 일부로만 동작하거나 내부적으로만 사용하는 스킬은 false로 함  
+> **주의**: `disable-model-invocation: true` 추가 안함
+> name, description, type은 필수
+
 [Top](#skill-표준)
 
 ---
@@ -593,6 +611,20 @@ Orchestrator 스킬은 `## 워크플로우` 안에 `### Phase N: {Name}` 패턴�
 - 모드 간 계층 관계 존재 (예: autopilot → ralph → ultrawork)
 - 독립 실행 가능 스킬 vs 컴포넌트(단독 불가) 구분
 
+#### frontmatter 권장 설정
+
+```yaml
+---
+name: {skill-name}
+description: {skill-description}
+type: orchestrator
+user-invocable: true
+---
+```
+> **중요**: 사용자가 직접 호출하는 스킬만 user-invocable을 true로 하고 상위 스킬의 워크플로우 일부로만 동작하거나 내부적으로만 사용하는 스킬은 false로 함  
+> **주의**: `disable-model-invocation: true` 추가 안함
+> name, description, type은 필수
+
 [Top](#skill-표준)
 
 ---
@@ -626,6 +658,21 @@ Utility 스킬은 `## 워크플로우` 안에 `### Step N: {Name}` 패턴으로 
 - 가장 간결한 구조 (평균 5 섹션)
 - 테이블 중심: 명령어, 옵션, 서브커맨드를 테이블로 정리
 - 도메인 특화 가능: 창작, 환경 관리, 배포, 상태 제어 등
+
+#### frontmatter 권장 설정
+
+```yaml
+---
+name: {skill-name}
+description: {skill-description}
+type: utility
+user-invocable: true
+---
+```
+
+> **중요**: 사용자가 직접 호출하는 스킬만 user-invocable을 true로 하고 상위 스킬의 워크플로우 일부로만 동작하거나 내부적으로만 사용하는 스킬은 false로 함  
+> **주의**: `disable-model-invocation: true` 추가 안함
+> name, description, type은 필수
 
 [Top](#skill-표준)
 
@@ -721,9 +768,13 @@ ARGS: {
 ---
 name: ext-{대상플러그인}
 description: 외부 플러그인 위임으로 {대상플러그인} 워크플로우 실행
+type: external
 user-invocable: true
 ---
 ```
+
+> **주의**: `disable-model-invocation: true` 추가 안함
+> name, description, type은 필수
 
 [Top](#skill-표준)
 
@@ -756,6 +807,8 @@ user-invocable: true
 ---
 name: my-core-skill
 description: 시스템 전체 행동 규범
+type: core
+user-invocable: false
 ---
 
 # My Core Skill
@@ -827,7 +880,10 @@ Todo 생성 기준 및 워크플로우.
 ---
 name: my-orchestrator
 description: 워크플로우 조율 및 병렬 실행 관리
+type: orchestrator
+user-invocable: true|false
 ---
+> **중요**: 사용자가 직접 호출하는 스킬만 user-invocable을 true로 하고 상위 스킬의 워크플로우 일부로만 동작하거나 내부적으로만 사용하는 스킬은 false로 함
 
 # My Orchestrator
 
@@ -933,6 +989,7 @@ description: 워크플로우 조율 및 병렬 실행 관리
 ---
 name: help
 description: 플러그인 사용 안내
+type: utility
 user-invocable: true
 ---
 
@@ -989,6 +1046,7 @@ user-invocable: true
 ---
 name: ext-{대상플러그인}
 description: 외부 플러그인 위임으로 {대상플러그인} 워크플로우 실행
+type: utility
 user-invocable: true
 ---
 
@@ -1161,7 +1219,7 @@ user-invocable: true
 
 ## 검증 체크리스트
 
-- [ ] Frontmatter에 name, description 포함
+- [ ] Frontmatter에 name, description, type 포함
 - [ ] H1 타이틀 존재
 - [ ] 목표 섹션 존재
 - [ ] 유형에 맞는 고유 섹션 포함

@@ -208,6 +208,23 @@ const ko: Translations = {
   'session.claudeCode': 'Claude Code 대화',
   'session.transcriptView': '대화이력 보기',
   'session.backToList': '돌아가기',
+
+  // Menu Management
+  'menu.manage': '메뉴 관리',
+  'menu.manage.tooltip': '스킬 메뉴를 커스터마이즈합니다',
+  'menu.aiRecommend': 'AI 추천',
+  'menu.aiRecommend.loading': '스킬 분석 중...',
+  'menu.addSubcategory': '분류 추가',
+  'menu.removeSubcategory': '분류 삭제',
+  'menu.save': '저장',
+  'menu.moveSkill': '이동',
+  'menu.ko': '한국어',
+  'menu.en': '영문',
+  'menu.newSubcategory': '새 분류',
+  'menu.confirmReset': 'AI 추천으로 메뉴를 교체하시겠습니까?',
+  'menu.dropHere': '여기에 놓기',
+  'menu.useSubcategory': '분류 사용',
+  'menu.noSubcategory': '분류 미사용',
 };
 
 export default ko;

@@ -1,8 +1,22 @@
+/**
+ * Claude SDK 클라이언트 - DMAP 스킬 실행 엔진
+ *
+ * @anthropic-ai/claude-code SDK의 query() 함수를 래핑하여 스킬 실행, SSE 스트리밍,
+ * ASK_USER 프로토콜, 스킬 체인(CHAIN>>>), 자동 재개(auto-continue) 등 핵심 기능을 제공.
+ *
+ * 주요 흐름:
+ * 1. executeSkill() → SKILL.md 로드 + 에이전트 주입 + SDK query() 호출
+ * 2. runQuery() → SDK 메시지 스트림 소비 + SSE 이벤트 변환
+ * 3. 사용자 질문 감지 시 pendingQuestions 반환 → 프론트엔드 QuestionFormDialog 표시
+ * 4. 턴 소진 시 자동 재개(최대 5회)
+ *
+ * @module claude-sdk-client
+ */
 import { readFile, mkdir, appendFile } from 'fs/promises';
 import path from 'path';
 import type { SSEEvent, QuestionItem } from '@dmap-web/shared';
-import { loadOmcAgents, getSkillPatterns, type OmcAgentDef } from './omc-integration.js';
-import { loadRegisteredAgents } from './agent-registry.js';
+import { loadOmcAgents, getSkillPatterns, getSkillPatternsFallback, type OmcAgentDef } from './omc-integration.js';
+import { loadRegisteredPlugin } from './agent-registry.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('SDK');
@@ -24,11 +38,19 @@ async function createFileLogger(dmapProjectDir: string, skillName: string): Prom
   };
 }
 
+/** SSE 스트리밍 콜백 인터페이스 - 백엔드→프론트엔드 실시간 이벤트 전달 */
 export interface StreamCallbacks {
   onEvent: (event: SSEEvent) => void;
   onSessionId?: (sessionId: string) => void;
 }
 
+/**
+ * SDK query() 실행 결과
+ * @property hasContent - 텍스트 콘텐츠 발생 여부
+ * @property sdkSessionId - SDK 세션 ID (재개 시 사용)
+ * @property numTurns - 소비된 턴 수 (auto-continue 판단 기준)
+ * @property pendingQuestions - 사용자 질문이 감지된 경우 질문 목록
+ */
 interface RunQueryResult {
   hasContent: boolean;
   sdkSessionId?: string;
@@ -40,6 +62,7 @@ interface RunQueryResult {
 }
 
 // SDK message types (not exported by @anthropic-ai/claude-code)
+/** SDK 메시지 콘텐츠 블록 (text, tool_use 등) - @anthropic-ai/claude-code에서 미 export */
 interface SdkContentBlock {
   type: string;
   text?: string;
@@ -48,6 +71,7 @@ interface SdkContentBlock {
   input?: Record<string, unknown>;
 }
 
+/** SDK 메시지 타입 (system, assistant, result) - @anthropic-ai/claude-code에서 미 export */
 interface SdkMessage {
   type: string;
   session_id?: string;
@@ -59,8 +83,18 @@ interface SdkMessage {
   duration_ms?: number;
 }
 
+/** ASK_USER HTML 코멘트 블록 매칭 정규식 - 모델 출력에서 구조화된 질문 추출용 */
 const ASK_USER_REGEX_G = /<!--ASK_USER-->\s*([\s\S]*?)\s*<!--\/ASK_USER-->/g;
 
+/**
+ * SKILL.md에서 Phase/Step 헤딩을 파싱하여 진행률 추적 데이터 생성
+ *
+ * Phase 패턴: "### Phase 1: 요구사항 분석" → 상위 레벨 그룹핑 (develop-plugin 등)
+ * Step 패턴: "### Step 1: 문서 준비" → 단순 단계별 진행 (team-planner, publish 등)
+ *
+ * @param skillContent - SKILL.md 파일 내용
+ * @returns Phase/Step 목록 + Phase 모드 여부, 2개 미만이면 null
+ */
 function parseSkillSteps(skillContent: string): { steps: Array<{ step: number; label: string }>; isPhaseMode: boolean } | null {
   // Try Phase pattern first (higher-level grouping like develop-plugin)
   // Support both ### and #### headings
@@ -92,6 +126,14 @@ function parseSkillSteps(skillContent: string): { steps: Array<{ step: number; l
   return null;
 }
 
+/**
+ * 모델 출력 텍스트에서 현재 Phase/Step 번호를 감지
+ * 텍스트에 여러 번호가 있으면 가장 큰 값을 반환 (진행 방향 = 증가)
+ *
+ * @param text - 모델의 텍스트 출력
+ * @param isPhaseMode - Phase 모드이면 "Phase N", 아니면 "Step N" 검색
+ * @returns 감지된 단계 번호, 없으면 null
+ */
 function detectStepFromText(text: string, isPhaseMode: boolean): number | null {
   const keyword = isPhaseMode ? 'Phase' : 'Step';
   const regex = new RegExp(`${keyword}\\s+(\\d+)`, 'gi');
@@ -102,6 +144,16 @@ function detectStepFromText(text: string, isPhaseMode: boolean): number | null {
   return null;
 }
 
+/**
+ * 모델 출력에서 <!--ASK_USER-->...<!--/ASK_USER--> 블록을 추출하여 구조화된 질문으로 변환
+ *
+ * 프로토콜: 모델이 HTML 코멘트 형식으로 JSON 질문 블록을 출력 →
+ *          백엔드가 파싱하여 'questions' SSE 이벤트로 변환 →
+ *          프론트엔드 QuestionFormDialog가 렌더링
+ *
+ * @param text - 모델의 텍스트 출력 (ASK_USER 블록 포함 가능)
+ * @returns cleanText(ASK_USER 제거된 텍스트) + 파싱된 질문 목록, 없으면 null
+ */
 function extractAskUserBlocks(text: string): { cleanText: string; title: string; questions: QuestionItem[] } | null {
   const matches = [...text.matchAll(ASK_USER_REGEX_G)];
   if (matches.length === 0) return null;
@@ -125,6 +177,15 @@ function extractAskUserBlocks(text: string): { cleanText: string; title: string;
   return { cleanText, title, questions: allQuestions };
 }
 
+/**
+ * 모델 출력에서 스킬 체인 명령(CHAIN>>>/pluginId:skillName)을 감지
+ *
+ * 스킬 체인: 현재 스킬 완료 후 다른 스킬로 자동 전환하는 메커니즘
+ * 예) develop-plugin 완료 → CHAIN>>>/dmap:publish → publish 스킬 자동 실행
+ *
+ * @param text - 모델의 텍스트 출력
+ * @returns 감지된 스킬 이름과 입력값, 없으면 null
+ */
 function detectSkillChainCommand(text: string): { skillName: string; input?: string } | null {
   // Detect explicit chain marker: CHAIN>>>/pluginId:skill-name at line start
   const slashPattern = /^CHAIN>>>\/([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)(?:\s+(.+))?/m;
@@ -135,9 +196,19 @@ function detectSkillChainCommand(text: string): { skillName: string; input?: str
   return null;
 }
 
-async function loadAllAgents(pluginId?: string) {
+/**
+ * OMC 에이전트와 플러그인 에이전트를 모두 로드하여 병합
+ *
+ * 로딩 순서: OMC 에이전트(~/.claude/plugins/cache/omc/) → 플러그인 에이전트(agents/)
+ * 플러그인 에이전트가 OMC와 동일 키를 가지면 플러그인 에이전트가 우선(덮어쓰기)
+ *
+ * @param pluginId - 플러그인 ID (없으면 OMC 에이전트만 로드)
+ * @param skillName - 스킬 이름 (선택적 에이전트 필터링에 사용)
+ * @returns 에이전트 맵 + 각 카운트 + 플러그인 에이전트 가이드 텍스트
+ */
+async function loadAllAgents(pluginId?: string, skillName?: string) {
   const omcAgents = await loadOmcAgents();
-  const pluginAgents = pluginId ? loadRegisteredAgents(pluginId) : {};
+  const pluginAgents = pluginId ? loadRegisteredPlugin(pluginId, skillName) : {};
   const pluginAgentCount = Object.keys(pluginAgents).length;
   const allAgents = { ...(omcAgents || {}), ...pluginAgents };
   const allAgentCount = Object.keys(allAgents).length;
@@ -153,6 +224,10 @@ async function loadAllAgents(pluginId?: string) {
   return { omcAgents, pluginAgents, pluginAgentCount, allAgents, allAgentCount, pluginAgentGuide };
 }
 
+/**
+ * 첨부 파일 경로 목록을 프롬프트에 포함할 텍스트로 변환
+ * Read 도구로 읽도록 모델에게 안내하는 지시문 포함
+ */
 function buildFileAttachment(filePaths: string[] | undefined, isEnglish: boolean): string {
   if (!filePaths || filePaths.length === 0) return '';
   const fileList = filePaths.map((f) => `- ${f}`).join('\n');
@@ -161,6 +236,7 @@ function buildFileAttachment(filePaths: string[] | undefined, isEnglish: boolean
     : `\n\n첨부 파일:\n${fileList}\n\n위 파일들을 Read 도구로 읽어서 참고하세요.`;
 }
 
+/** 모델에게 주입되는 ASK_USER 프로토콜 지시문 - AskUserQuestion 도구 대신 HTML 코멘트 형식 사용 강제 */
 const ASK_USER_INSTRUCTION = `
 CRITICAL INSTRUCTION - USER INTERACTION FORMAT:
 You do NOT have access to the AskUserQuestion tool. It is disabled in this environment.
@@ -189,6 +265,7 @@ Rules:
 - Output your explanation text normally before the JSON block. Do NOT use numbered plain text questions.
 - If you need to ask even ONE question, use this format. No exceptions.`;
 
+/** 스킬 체인 시 결과물 파일 저장 규약 - 다음 스킬이 이전 스킬 결과를 참조할 수 있도록 output/ 디렉토리에 저장 */
 const SKILL_CHAIN_FILE_CONVENTION = `
 SKILL CHAIN FILE CONVENTION:
 When your skill work is complete and you are about to chain to another skill:
@@ -202,6 +279,21 @@ When your skill work is complete and you are about to chain to another skill:
 
 When a previous skill's result file path is provided below, read that file FIRST to get context from the previous skill before starting your own workflow. If the file does not exist, proceed with your workflow without previous context.`;
 
+/**
+ * Claude SDK query() 실행 및 메시지 스트림 처리 (내부 핵심 함수)
+ *
+ * SDK의 async iterator를 소비하며 각 메시지 타입별로 SSE 이벤트를 생성:
+ * - system → sdkSessionId 캡처
+ * - assistant/text → CHAIN>>> 감지, ASK_USER 추출, 일반 텍스트 전송
+ * - assistant/tool_use → AskUserQuestion 변환, Task 에이전트 이벤트, 도구 이벤트 전송
+ * - result → 토큰 사용량/비용 전송, 세션 ID 업데이트
+ *
+ * @param prompt - 모델에 전달할 프롬프트
+ * @param options - SDK query() 옵션 (model, agents, appendSystemPrompt 등)
+ * @param callbacks - SSE 이벤트 콜백
+ * @param externalAbortController - 외부 중단 컨트롤러
+ * @param fileLog - 파일 로거 (디버깅용)
+ */
 async function runQuery(
   prompt: string,
   options: Record<string, unknown>,
@@ -272,6 +364,9 @@ async function runQuery(
               callbacks.onEvent({ type: 'text', text: block.text });
             }
           } else if (block.type === 'tool_use') {
+            // AskUserQuestion 도구 호출 감지 → CLI 데드락 방지를 위해 즉시 abort
+            // SDK의 CLI 모드는 tool_result를 기다리므로, abort하고 pendingQuestions로 변환하여
+            // 프론트엔드 QuestionFormDialog 경로로 우회 처리
             if (block.name === 'AskUserQuestion') {
               // AskUserQuestion detected - abort is REQUIRED to prevent CLI deadlock
               // (CLI waits for tool_result indefinitely without abort)
@@ -303,6 +398,7 @@ async function runQuery(
               // the broken path (ApprovalDialog + waitForUserResponse)
               return { hasContent, sdkSessionId, pendingQuestions };
             }
+            // Task 도구 호출 = 에이전트 위임 → 프론트엔드 ActivityPanel에 에이전트 정보 표시
             // Emit agent event for Task delegations
             if (block.name === 'Task') {
               const taskInput = block.input as Record<string, unknown> | undefined;
@@ -324,6 +420,7 @@ async function runQuery(
                 });
               }
             }
+            // 도구별 간략 설명 추출 - ActivityPanel의 ToolSection에 표시될 정보
             // Extract short description from tool input
             const input = block.input as Record<string, unknown> | undefined;
             let desc = '';
@@ -373,6 +470,27 @@ export interface ExecuteSkillResult {
   fullyComplete: boolean;
 }
 
+/**
+ * DMAP 스킬 실행 메인 함수
+ *
+ * 실행 흐름:
+ * 1. SKILL.md 로드 → Phase/Step 파싱 → 진행률 추적 초기화
+ * 2. OMC + 플러그인 에이전트 로드 → agents 옵션에 주입
+ * 3. appendSystemPrompt에 스킬 지시문 + ASK_USER 프로토콜 + 체인 규약 설정
+ * 4. runQuery() 루프: 턴 소진 시 자동 재개, 사용자 질문 감지 시 중단
+ *
+ * @param skillName - 실행할 스킬 이름 (skills/{name}/SKILL.md)
+ * @param input - 사용자 입력 (선택)
+ * @param dmapProjectDir - DMAP 프로젝트 루트 경로
+ * @param lang - 언어 코드 ('ko' 또는 기타=영어)
+ * @param callbacks - SSE 스트리밍 콜백
+ * @param resumeSessionId - 재개할 SDK 세션 ID
+ * @param pluginId - 플러그인 ID
+ * @param filePaths - 첨부 파일 경로 목록
+ * @param abortController - 중단 컨트롤러
+ * @param previousSkillName - 체인 시 이전 스킬 이름 (결과 파일 참조용)
+ * @returns fullyComplete - 스킬이 완전히 완료되었는지 여부 (false면 사용자 응답 대기)
+ */
 export async function executeSkill(
   skillName: string,
   input: string | undefined,
@@ -404,8 +522,8 @@ export async function executeSkill(
     callbacks.onEvent({ type: 'progress', steps: parsedSkillSteps.steps, activeStep: 1 });
   }
 
-  // Load all agents (OMC + plugin)
-  const { omcAgents, pluginAgentCount, allAgents, allAgentCount, pluginAgentGuide: basePluginGuide } = await loadAllAgents(pluginId);
+  // Load all agents (OMC + plugin, filtered by skillName for selective loading)
+  const { omcAgents, pluginAgentCount, allAgents, allAgentCount, pluginAgentGuide: basePluginGuide } = await loadAllAgents(pluginId, skillName);
   if (omcAgents) log.info(`Loaded ${Object.keys(omcAgents).length} OMC agents`);
   if (pluginAgentCount > 0) log.info(`Loaded ${pluginAgentCount} registered agents for plugin "${pluginId}"`);
 
@@ -414,6 +532,7 @@ export async function executeSkill(
     ? basePluginGuide.replace('Use the full FQN as subagent_type.', `Use the full FQN as subagent_type (e.g., Task(subagent_type="${Object.keys(allAgents)[0] || 'scope:agent:agent'}", model="sonnet", prompt="...")).`)
     : '';
 
+  // SDK 호출 옵션 구성 - permissionMode: bypassPermissions로 도구 승인 생략
   const options: Record<string, unknown> = {
     model: 'claude-sonnet-4-5-20250929',
     permissionMode: 'bypassPermissions',
@@ -433,7 +552,7 @@ ${ASK_USER_INSTRUCTION}
 ${SKILL_CHAIN_FILE_CONVENTION}${previousSkillName ? `\n\nPREVIOUS SKILL RESULT:\nThe previous skill "${previousSkillName}" may have saved results at: output/${previousSkillName}-result.md\nRead this file FIRST using the Read tool before starting your workflow.` : ''}
 
 === SKILL INSTRUCTIONS ===
-${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSkillPatterns()}` : ''}`,
+${skillContent}\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${omcAgents ? getSkillPatterns() : getSkillPatternsFallback()}`,
     } : {}),
   };
 
@@ -505,6 +624,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
     let autoContinueCount = 0;
     const maxTurns = (options.maxTurns as number) || 50;
 
+    // 메인 실행 루프: ASK_USER 응답 처리 + 턴 소진 시 자동 재개(최대 5회)
     while (true) {
       const opts: Record<string, unknown> = { ...options };
       if (sdkSessionId) opts.resume = sdkSessionId;
@@ -529,6 +649,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
       const hasPendingQuestions = result.pendingQuestions && result.pendingQuestions.questions.length > 0;
       const turnsExhausted = result.numTurns !== undefined && result.numTurns >= maxTurns;
 
+      // 턴 소진(numTurns >= maxTurns) + 질문 없음 + 재개 횟수 미초과 → 자동 재개
       // Auto-continue if turns exhausted and no pending questions
       if (!hasPendingQuestions && turnsExhausted && autoContinueCount < MAX_AUTO_CONTINUES) {
         autoContinueCount++;
@@ -539,6 +660,7 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
         continue;
       }
 
+      // 사용자 질문이 없으면 스킬 완전 완료, 있으면 응답 대기 후 재개 필요
       // No askUserQuestion and no pendingQuestions → skill fully complete
       const fullyComplete = !hasPendingQuestions;
       log.info(`Skill execution completed (fullyComplete=${fullyComplete}, numTurns=${result.numTurns}, autoContinues=${autoContinueCount})`);
@@ -564,6 +686,22 @@ ${skillContent}${omcAgents ? `\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${getSki
   }
 }
 
+/**
+ * 자유 프롬프트 실행 (스킬 없이 직접 대화)
+ *
+ * executeSkill과 달리 SKILL.md 없이 사용자 입력을 직접 SDK에 전달.
+ * 에이전트 주입, ASK_USER 프로토콜은 동일하게 적용.
+ * 프론트엔드의 "자유 입력" 모드에서 사용.
+ *
+ * @param input - 사용자 입력 텍스트
+ * @param dmapProjectDir - DMAP 프로젝트 루트 경로
+ * @param lang - 언어 코드
+ * @param callbacks - SSE 스트리밍 콜백
+ * @param resumeSessionId - 재개할 SDK 세션 ID
+ * @param pluginId - 플러그인 ID
+ * @param filePaths - 첨부 파일 경로 목록
+ * @param abortController - 중단 컨트롤러
+ */
 export async function executePrompt(
   input: string,
   dmapProjectDir: string,

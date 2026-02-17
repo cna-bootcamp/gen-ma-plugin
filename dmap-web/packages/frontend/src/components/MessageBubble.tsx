@@ -1,12 +1,21 @@
+/**
+ * 메시지 버블 컴포넌트 - 채팅 메시지 렌더링.
+ * 역할별 스타일 분기(user/assistant/system) + ASK_USER 인라인 질문 폼 지원
+ * @module components/MessageBubble
+ */
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ChatMessage, QuestionItem } from '@dmap-web/shared';
 import { useState } from 'react';
 
+/** 메시지 버블 Props - 단일 ChatMessage 객체 */
 interface MessageBubbleProps {
   message: ChatMessage;
 }
 
+/**
+ * ASK_USER 블록 파싱 - 메시지 내 <!--ASK_USER-->JSON<!--/ASK_USER--> 패턴에서 질문 데이터 추출
+ */
 function parseAskUserBlock(content: string): { title: string; questions: QuestionItem[] } | null {
   const match = content.match(/<!--ASK_USER-->\s*(\{[\s\S]*?\})\s*<!--\/ASK_USER-->/);
   if (!match) return null;
@@ -18,13 +27,21 @@ function parseAskUserBlock(content: string): { title: string; questions: Questio
   }
 }
 
+/**
+ * 인라인 질문 폼 - ASK_USER 프로토콜의 구조화된 질문을 메시지 버블 내에 렌더링.
+ * radio/checkbox/text 타입 지원, 응답 완료 시 클립보드 복사
+ */
 function InlineQuestionForm({ data }: { data: { title: string; questions: QuestionItem[] } }) {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [customInputs, setCustomInputs] = useState<Record<number, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
+  // 직접 입력 옵션 식별자 - radio/checkbox에서 "기타" 선택 시 사용
   const CUSTOM_INPUT_KEY = '__custom__';
 
+  /**
+   * 응답 제출 - 모든 질문의 답변을 포맷팅하여 클립보드에 복사 (사용자가 채팅에 붙여넣기)
+   */
   const handleSubmit = () => {
     const formatted = data.questions
       .map((q, i) => {
@@ -171,6 +188,10 @@ function InlineQuestionForm({ data }: { data: { title: string; questions: Questi
   );
 }
 
+/**
+ * 메시지 버블 - role별 렌더링 분기:
+ * system(ASK_USER 폼 또는 알림), user(파란색 오른쪽), assistant(흰색 왼쪽 + Markdown)
+ */
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
@@ -199,6 +220,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         }`}
       >
         <div className={`prose prose-sm max-w-none dark:prose-invert ${isUser ? 'prose-invert' : ''}`}>
+          {/* Markdown 렌더링 - GFM(테이블, 취소선 등) 지원 */}
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content}
           </ReactMarkdown>

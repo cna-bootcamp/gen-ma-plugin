@@ -11,12 +11,13 @@ interface PluginSwitcherProps {
 }
 
 export function PluginSwitcher({ disabled }: PluginSwitcherProps) {
-  const { plugins, selectedPlugin, selectPlugin, removePlugin, fetchSkills } = useAppStore(useShallow((s) => ({
+  const { plugins, selectedPlugin, selectPlugin, removePlugin, fetchSkills, fetchMenus } = useAppStore(useShallow((s) => ({
     plugins: s.plugins,
     selectedPlugin: s.selectedPlugin,
     selectPlugin: s.selectPlugin,
     removePlugin: s.removePlugin,
     fetchSkills: s.fetchSkills,
+    fetchMenus: s.fetchMenus,
   })));
   const { lang } = useLangStore();
   const [open, setOpen] = useState(false);
@@ -43,10 +44,10 @@ export function PluginSwitcher({ disabled }: PluginSwitcherProps) {
     selectPlugin(plugin);
     setOpen(false);
 
-    // Fetch skills for the new plugin
+    // Fetch skills and menus for the new plugin
     const fetchedSkills = await new Promise<SkillMeta[]>((resolve) => {
       setTimeout(async () => {
-        await fetchSkills();
+        await Promise.all([fetchSkills(), fetchMenus()]);
         resolve(useAppStore.getState().skills);
       }, 0);
     });

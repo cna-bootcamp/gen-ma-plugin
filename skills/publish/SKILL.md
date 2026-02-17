@@ -140,7 +140,9 @@ Git Push 완료 후 다음 내용을 출력함.
 claude plugin marketplace add {owner}/{repo-name}
 
 # 2. 플러그인 설치
-claude plugin install {plugin-name}@{repo-name}
+claude plugin install {plugin-name}@{marketplace-name}   
+- plugin-name은 .claude-plugin/plugin.json의 name 필드와 동일
+- marketplace-name은 .claude-plugin/marketplace.json의 name 필드와 동일
 
 # 3. 설치 확인
 claude plugin list

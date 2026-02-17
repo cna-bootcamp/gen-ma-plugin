@@ -148,7 +148,7 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 
 **Step 3. 개발 계획 수립 (스킬 부스팅)**
 
-`/oh-my-claudecode:ralplan` 스킬을 사용하여 개발 계획서 작성.
+`/oh-my-claudecode:ralplan` 스킬 부스팅 패턴을 적용하여 개발 계획서 작성.
 
 개발 계획서 포함 사항:
 - 공유자원 마켓플레이스에서 가져갈 자원 목록
@@ -167,21 +167,25 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 
 ### Phase 3: 플러그인 개발 (스킬 부스팅)
 
-`/oh-my-claudecode:ralph` 스킬을 사용하여 개발 계획서에 따라 플러그인 개발.
+`/oh-my-claudecode:ralph` 스킬 부스팅 패턴을 적용하여 개발 계획서에 따라 플러그인 개발.
 
 개발 순서:
-1. 플러그인 스켈레톤 생성 (`{대상 프로젝트}/.claude-plugin/`, 디렉토리 구조)
+1. 플러그인 스켈레톤 생성 (`{플러그인 디렉토리}/.claude-plugin/`, 디렉토리 구조)
+  - `.claude-plugin/plugin.json`과 `.claude-plugin/marketplace.json` 작성 (플러그인 메타데이터, 마켓플레이스 정보)
+  - `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`은 `standards/plugin-standard.md`의 플러그인 메인 표준을 준수하여 작성
 2. `.gitignore` 생성 (`.dmap/secrets/`, `__pycache__/`, `.env` 등 보안·임시 파일 제외. `output/` 디렉토리는 제외하지 않음)
-3. Gateway 설정 (`install.yaml`, `runtime-mapping.yaml`)
-4. 공유자원 복사 (리소스 마켓플레이스 → 플러그인 디렉토리)
-5. 에이전트 개발 (`AGENT.md`, `agentcard.yaml`, `tools.yaml`)
-6. 스킬 개발
+3. Gateway 설정 (`{플러그인 디렉토리}/gateway/install.yaml`, `{플러그인 디렉토리}/gateway/runtime-mapping.yaml`)
+4. 공유자원 복사 
+  - 리소스 마켓플레이스 → {플러그인 디렉토리}/resources/ 
+  - {플러그인 디렉토리}/resources/resource.md에 '로컬 리소스 카탈로그' 작성하여 복사된 자원 목록과 간략 설명 기록
+5. {플러그인 디렉토리}/agents/ 하위에 에이전트 개발 (`AGENT.md`, `agentcard.yaml`, `tools.yaml`)
+6. {플러그인 디렉토리}/skills/ 하위에 스킬 개발
    - 기본 스킬: `standards/plugin-standard-skill.md`의 각 유형별 표준 및 템플릿을 준수하여 생성
      - setup 스킬 (필수): 플러그인 초기 설정
      - help 스킬 (필수): 사용 안내
      - add-ext-skill 스킬 (필수): 외부호출 스킬 추가 유틸리티 (아래 "add-ext-skill 생성 지침" 참조)
      - remove-ext-skill 스킬 (필수): 외부호출 스킬 제거 유틸리티 (아래 "remove-ext-skill 생성 지침" 참조)
-     - 기능 스킬: 요구사항에 따른 Orchestrator/Worker/Planning/Utility 스킬
+     - 기능 스킬: 요구사항에 따른 Core/Planning/Orchestrator/Utility 스킬
    - 외부 플러그인 연동: 사용자에게 "유용한 외부 플러그인을 탐색할까요?" 확인
      - abra 플러그인(AI Agent 개발 자동화)은 기본 추천, 그 외 탐색된 플러그인이 있으면 함께 추천
      - 사용자가 취소한 경우: "나중에 `/{플러그인명}:add-ext-skill`로 언제든 추가할 수 있습니다" 안내
@@ -321,8 +325,10 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
    - [ ] commands/ext-{대상플러그인}.md 파일이 삭제되었는가
    - [ ] help 스킬의 명령 테이블에서 해당 행이 제거되었는가
    - [ ] 다른 스킬/명령에 부수효과가 없는가
-7. commands/ 진입점 생성
-8. 커스텀 앱/CLI 개발 (필요 시)
+7. {플러그인 디렉토리}/commands/ 진입점 생성
+8. 커스텀 앱/CLI 개발
+  - {플러그인 디렉토리}/resources/tools/ 하위에 개발
+  - {플러그인 디렉토리}/resources/resource.md에 '로컬 리소스 카탈로그' 에 추가 
 9. README.md 작성
 
 > 각 단계의 상세 내용은 `resources/guides/plugin/plugin-dev-guide.md`의 Phase 3 참조.
@@ -338,6 +344,7 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 | 검증 항목 | 확인 내용 |
 |----------|----------|
 | 필수 파일 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` 존재 |
+| 필수 파일 구조 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` 이 스킬 메인 표준 준수 |
 | 에이전트 쌍 | 모든 에이전트에 `AGENT.md` + `agentcard.yaml` 존재 |
 | 스킬 구조 | 모든 스킬에 `SKILL.md` 존재, frontmatter 포함 |
 | setup 스킬 | setup 스킬 존재 |

@@ -1,5 +1,21 @@
+/**
+ * 공유 상수 - DMAP 기본 스킬 목록 및 API 설정
+ *
+ * DMAP_SKILLS: DMAP 빌더 기본 스킬 7종 + 외부 연동 스킬
+ * PROMPT_SKILL: 자유 프롬프트 모드 가상 스킬 (__prompt__)
+ * SKILL_CATEGORIES: 스킬 카테고리별 라벨/색상 매핑
+ *
+ * @module shared/constants
+ */
+
 import type { SkillMeta } from './types.js';
 
+/**
+ * DMAP 빌더 기본 스킬 목록 (고정 순서)
+ *
+ * 사이드바에서 이 순서대로 표시됨. discoverSkills()에서 이 순서를 우선 적용.
+ * 추가 스킬은 skills/ 디렉토리 동적 탐색으로 발견.
+ */
 export const DMAP_SKILLS: SkillMeta[] = [
   {
     name: 'team-planner',
@@ -67,6 +83,7 @@ export const DMAP_SKILLS: SkillMeta[] = [
   },
 ];
 
+/** 자유 프롬프트 모드 가상 스킬 - SKILL.md 없이 직접 Claude SDK에 프롬프트 전달 */
 export const PROMPT_SKILL: SkillMeta = {
   name: '__prompt__',
   displayName: '프롬프트',
@@ -76,6 +93,7 @@ export const PROMPT_SKILL: SkillMeta = {
   hasApprovalGates: true,
 };
 
+/** 스킬 카테고리 메타데이터 - 사이드바 메뉴에서 카테고리별 라벨/색상 표시에 사용 */
 export const SKILL_CATEGORIES = {
   core: { label: '핵심', color: 'blue' },
   utility: { label: '유틸리티', color: 'gray' },
@@ -83,4 +101,5 @@ export const SKILL_CATEGORIES = {
   external: { label: '외부 연동', color: 'purple' },
 } as const;
 
+/** API 기본 경로 - 프론트엔드 fetch 호출 시 사용 */
 export const API_BASE = '/api';

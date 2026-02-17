@@ -1,3 +1,8 @@
+/**
+ * 채팅 패널 컴포넌트 - 스킬 실행의 메인 인터랙션 영역.
+ * 상단 입력 → 메시지 목록 → 하단 멀티턴 입력 → 승인/질문 다이얼로그로 구성
+ * @module components/ChatPanel
+ */
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/appStore.js';
@@ -14,10 +19,15 @@ import { TurnApprovalBar } from './TurnApprovalBar.js';
 import { FileBrowserDialog } from './FileBrowserDialog.js';
 import { SessionList } from './SessionList.js';
 
+/** textarea 자동 크기 조절 상수 - 줄 높이(px), 최소/최대 행 수 */
 const LINE_HEIGHT = 22;
 const MIN_ROWS = 2;
 const MAX_ROWS = 10;
 
+/**
+ * 채팅 패널 - 스킬 선택 시 표시되는 메인 대화 영역.
+ * 구조: 헤더(스킬 정보+초기 입력) → 메시지 목록(스크롤) → 하단 입력(멀티턴) → 승인 다이얼로그
+ */
 export function ChatPanel() {
   const { selectedSkill, messages, isStreaming, pendingApproval, sessionId, selectedPlugin, isTranscriptView, clearTranscriptView } = useAppStore(useShallow((s) => ({
     selectedSkill: s.selectedSkill,
@@ -43,8 +53,12 @@ export function ChatPanel() {
   const lastEscRef = useRef(0);
   const t = useT();
 
+  // 대화 시작 여부 판별 - 메시지 존재 or 스트리밍 중 or 트랜스크립트 뷰
   const hasStarted = messages.length > 0 || isStreaming || isTranscriptView;
 
+  /**
+   * textarea 자동 높이 조절 - 내용에 따라 MIN~MAX 행 범위 내에서 동적 리사이즈
+   */
   const autoResize = useCallback((el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = 'auto';
@@ -56,7 +70,9 @@ export function ChatPanel() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ESC double-tap to stop streaming
+  /**
+   * ESC 더블탭 스트리밍 중단 - 500ms 이내 ESC 2번 입력 시 스트림 종료
+   */
   useEffect(() => {
     if (!isStreaming) return;
     const handleEsc = (e: KeyboardEvent) => {
@@ -73,6 +89,9 @@ export function ChatPanel() {
     return () => document.removeEventListener('keydown', handleEsc);
   }, [isStreaming, stopStream]);
 
+  /**
+   * 스킬 실행 핸들러 - 사용자 입력을 메시지에 추가하고 SSE 스트리밍으로 스킬 실행 시작
+   */
   const handleExecute = () => {
     if (!selectedSkill || isStreaming) return;
     if (selectedSkill.name === '__prompt__' && !inputValue.trim()) return;
@@ -84,11 +103,17 @@ export function ChatPanel() {
     clearAttachments();
   };
 
+  /**
+   * 대화 초기화 - 메시지 목록과 입력값 모두 클리어
+   */
   const handleClear = () => {
     useAppStore.getState().clearChat();
     setInputValue('');
   };
 
+  /**
+   * 키보드 단축키 - Ctrl+Enter로 실행 트리거
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -96,6 +121,9 @@ export function ChatPanel() {
     }
   };
 
+  /**
+   * 하단 멀티턴 입력 전송 - 트랜스크립트 뷰 해제 후 대화 계속
+   */
   const handleBottomSend = () => {
     if (!selectedSkill || isStreaming || !bottomInputValue.trim()) return;
     // Exit transcript view on send - conversation continues as multi-turn
@@ -120,6 +148,7 @@ export function ChatPanel() {
 
   if (!selectedSkill) {
     return (
+      // 스킬 미선택 시 플러그인 이름과 안내 메시지 표시
       <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500">
         <div className="text-center">
           <div className="text-5xl mb-4">{'\u{1F528}'}</div>
@@ -135,7 +164,7 @@ export function ChatPanel() {
       className="flex-1 flex flex-col min-h-0 relative"
       {...dragProps}
     >
-      {/* Drag overlay */}
+      {/* 파일 드래그 시 시각적 피드백 오버레이 */}
       {isDragging && (
         <div className="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-xl z-50 flex items-center justify-center pointer-events-none">
           <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-xl shadow-lg text-blue-600 dark:text-blue-400 font-medium text-sm">
@@ -144,7 +173,7 @@ export function ChatPanel() {
         </div>
       )}
 
-      {/* Toast */}
+      {/* 일시적 알림 메시지 (파일 첨부 결과 등) */}
       {toast && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[110] px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm rounded-lg shadow-lg animate-fade-in">
           {toast}
@@ -157,7 +186,7 @@ export function ChatPanel() {
           onClose={() => setShowFileBrowser(false)}
         />
       )}
-      {/* Header */}
+      {/* 헤더: 스킬 정보 표시 + 트랜스크립트/초기화/중단 버튼 + 초기 입력 영역 */}
       <header className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -264,7 +293,7 @@ export function ChatPanel() {
         )}
       </header>
 
-      {/* Messages */}
+      {/* 메시지 목록: 세션 목록(빈 상태) → 메시지 버블 + 도구 인디케이터 → 스트리밍 표시기 */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 chat-scroll">
         {messages.length === 0 && !isStreaming && (
           <SessionList skillName={selectedSkill.name} />
@@ -293,7 +322,7 @@ export function ChatPanel() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Bottom input bar */}
+      {/* 하단 멀티턴 입력바 - 대화 진행 중 추가 입력 전송 영역 */}
       {hasStarted && !pendingApproval && (
         <div className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-6 py-3">
           <textarea
@@ -347,7 +376,7 @@ export function ChatPanel() {
         </div>
       )}
 
-      {/* Approval / Question Form */}
+      {/* 승인 다이얼로그: QuestionFormDialog(구조화 질문) / TurnApprovalBar(턴 승인) / ApprovalDialog(일반 승인) */}
       {pendingApproval && sessionId && (
         pendingApproval.parsedQuestions ? (
           <QuestionFormDialog

@@ -204,4 +204,21 @@ export interface Translations {
   'session.claudeCode': string;
   'session.transcriptView': string;
   'session.backToList': string;
+
+  // Menu Management
+  'menu.manage': string;
+  'menu.manage.tooltip': string;
+  'menu.aiRecommend': string;
+  'menu.aiRecommend.loading': string;
+  'menu.addSubcategory': string;
+  'menu.removeSubcategory': string;
+  'menu.save': string;
+  'menu.moveSkill': string;
+  'menu.ko': string;
+  'menu.en': string;
+  'menu.newSubcategory': string;
+  'menu.confirmReset': string;
+  'menu.dropHere': string;
+  'menu.useSubcategory': string;
+  'menu.noSubcategory': string;
 }

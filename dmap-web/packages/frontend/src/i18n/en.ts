@@ -208,6 +208,23 @@ const en: Translations = {
   'session.claudeCode': 'Claude Code Conversations',
   'session.transcriptView': 'View Transcript',
   'session.backToList': 'Back',
+
+  // Menu Management
+  'menu.manage': 'Manage Menu',
+  'menu.manage.tooltip': 'Customize skill menu',
+  'menu.aiRecommend': 'AI Recommend',
+  'menu.aiRecommend.loading': 'Analyzing skills...',
+  'menu.addSubcategory': 'Add Subcategory',
+  'menu.removeSubcategory': 'Remove Subcategory',
+  'menu.save': 'Save',
+  'menu.moveSkill': 'Move',
+  'menu.ko': 'Korean',
+  'menu.en': 'English',
+  'menu.newSubcategory': 'New Subcategory',
+  'menu.confirmReset': 'Replace menu with AI recommendation?',
+  'menu.dropHere': 'Drop here',
+  'menu.useSubcategory': 'Use Categories',
+  'menu.noSubcategory': 'No Categories',
 };
 
 export default en;

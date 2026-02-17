@@ -1,3 +1,18 @@
+/**
+ * 스킬 라우트 - DMAP 스킬 목록 조회 및 실행 API
+ *
+ * 엔드포인트:
+ * - GET /api/skills: 스킬 목록 조회 (SKILL.md frontmatter 기반 동적 탐색)
+ * - POST /api/skills/:name/execute: SSE 스트리밍으로 스킬 실행
+ *
+ * 스킬 실행 흐름:
+ * 1. 세션 생성/재개 → SSE 연결 초기화
+ * 2. executeSkill() 호출 (claude-sdk-client)
+ * 3. SSE 이벤트 스트리밍 (text/tool/agent/progress/questions/complete)
+ * 4. 스킬 체인 감지 시 새 세션 생성 + skill_changed 이벤트 전송
+ *
+ * @module routes/skills
+ */
 import { Router, Request, Response } from 'express';
 import { DMAP_SKILLS } from '@dmap-web/shared';
 import type { SkillExecuteRequest, SkillMeta, SSESkillChangedEvent, SSEUsageEvent } from '@dmap-web/shared';
@@ -14,10 +29,80 @@ const log = createLogger('Skills');
 
 export const skillsRouter = Router();
 
-// Per-session execution lock: ensures only one execution per session at a time
+/** 세션별 실행 잠금 - 동일 세션에서 중복 실행 방지, 클라이언트 연결 끊김 시 abort용 */
 const activeExecutions = new Map<string, AbortController>();
 
-// Build dynamic skill list by scanning skills/ directory
+/**
+ * SKILL.md 파일의 YAML frontmatter를 파싱
+ *
+ * 간이 YAML 파서: 들여쓰기 기반 중첩 객체 지원
+ * 인식하는 타입: string, boolean(true/false), 중첩 object
+ *
+ * @param skillDir - 스킬 디렉토리 경로 (SKILL.md가 있는 위치)
+ * @returns 파싱된 frontmatter 객체 또는 null
+ */
+function parseSkillFrontmatter(skillDir: string): Record<string, unknown> | null {
+  const skillMdPath = path.join(skillDir, 'SKILL.md');
+  try {
+    const content = fs.readFileSync(skillMdPath, 'utf-8').replace(/\r\n/g, '\n');
+    const match = content.match(/^---\n([\s\S]*?)\n---/);
+    if (!match) return null;
+
+    const yaml = match[1];
+    const result: Record<string, unknown> = {};
+    const lines = yaml.split('\n');
+    const stack: Array<{ obj: Record<string, unknown>; indent: number }> = [{ obj: result, indent: -1 }];
+
+    for (const line of lines) {
+      if (!line.trim() || line.trim().startsWith('#')) continue;
+      const indent = line.search(/\S/);
+      const trimmed = line.trim();
+      const colonIdx = trimmed.indexOf(':');
+      if (colonIdx === -1) continue;
+
+      const key = trimmed.slice(0, colonIdx).trim();
+      const value = trimmed.slice(colonIdx + 1).trim();
+
+      // Pop stack to find parent at correct indentation
+      while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+        stack.pop();
+      }
+      const parent = stack[stack.length - 1].obj;
+
+      if (value === '' || value === undefined) {
+        // Nested object
+        const child: Record<string, unknown> = {};
+        parent[key] = child;
+        stack.push({ obj: child, indent });
+      } else {
+        // Scalar value (strip quotes, handle booleans)
+        let parsed: unknown = value.replace(/^['"]|['"]$/g, '');
+        if (parsed === 'true') parsed = true;
+        else if (parsed === 'false') parsed = false;
+        parent[key] = parsed;
+      }
+    }
+
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * skills/ 디렉토리를 스캔하여 사용 가능한 스킬 목록 생성
+ *
+ * DMAP 플러그인: DMAP_SKILLS 상수 순서 우선 + 동적 탐색 스킬 추가
+ * 외부 플러그인: SKILL.md frontmatter 기반 카테고리 분류 + 정렬
+ *
+ * 분류 규칙:
+ * - well-known 스킬(setup, help 등): 고정 카테고리/아이콘
+ * - ext- 접두사: external 카테고리
+ * - frontmatter type: core/utility/setup/external
+ * - user-invocable: false → 목록에서 제외
+ *
+ * @param projectDir - 플러그인 프로젝트 경로 (기본: DMAP_PROJECT_DIR)
+ */
 function discoverSkills(projectDir: string = DMAP_PROJECT_DIR): SkillMeta[] {
   const skillsDir = path.join(projectDir, 'skills');
   if (!fs.existsSync(skillsDir)) return projectDir === DMAP_PROJECT_DIR ? DMAP_SKILLS : [];
@@ -63,12 +148,31 @@ function discoverSkills(projectDir: string = DMAP_PROJECT_DIR): SkillMeta[] {
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(' ');
 
+    // Parse SKILL.md frontmatter for category, i18n
+    const frontmatter = parseSkillFrontmatter(path.join(skillsDir, name));
+
+    // Skip non-user-invocable skills
+    if (frontmatter?.['user-invocable'] === false) continue;
+
+    const i18n = frontmatter?.i18n as Record<string, Record<string, string>> | undefined;
+    const fmCategory = (frontmatter?.type || frontmatter?.category) as SkillMeta['category'] | undefined;
+
+    // Resolve display name from i18n (ko preferred), then frontmatter description
+    const i18nDisplayName = i18n?.ko?.name;
+    const i18nDescription = i18n?.ko?.description;
+    const fmDescription = frontmatter?.description as string | undefined;
+
+    const validCategories = ['core', 'setup', 'utility', 'external'];
+    const resolvedCategory = fixed?.category
+      || (fmCategory && validCategories.includes(fmCategory) ? fmCategory : undefined)
+      || (isExt ? 'external' : 'core');
+
     result.push({
       name,
-      displayName: fixed?.displayName || (isExt ? `${label} 연동` : label),
-      description: isExt ? `${label} 외부 플러그인 연동` : label,
+      displayName: fixed?.displayName || i18nDisplayName || fmDescription || (isExt ? `${label} 연동` : label),
+      description: i18nDescription || fmDescription || (isExt ? `${label} 외부 플러그인 연동` : label),
       icon: fixed?.icon || (isExt ? '🔗' : '📄'),
-      category: fixed?.category || (isExt ? 'external' : 'core'),
+      category: resolvedCategory,
       hasApprovalGates: true,
     });
   }
@@ -102,7 +206,7 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
   // Resolve project directory
   const dmapProjectDir = await resolveProjectDir(pluginId);
 
-  // Handle free-form prompt mode (no SKILL.md needed)
+  // 자유 프롬프트 모드: SKILL.md 없이 직접 Claude SDK에 프롬프트 전달
   if (skillName === '__prompt__') {
     if (!input?.trim()) {
       res.status(400).json({ error: 'Prompt input is required' });
@@ -135,6 +239,7 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
     const abortController = new AbortController();
     activeExecutions.set(session.id, abortController);
 
+    // 클라이언트 연결 끊김 감지 → SDK 실행 abort (리소스 해제)
     req.on('close', () => {
       log.info(`Client disconnected from prompt session ${session.id}, aborting query`);
       abortController.abort();
@@ -226,6 +331,7 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
   const abortController = new AbortController();
   activeExecutions.set(session.id, abortController);
 
+  // 클라이언트 연결 끊김 감지 → SDK 실행 abort (리소스 해제)
   req.on('close', () => {
     log.info(`Client disconnected from session ${session.id}, aborting query`);
     abortController.abort();
@@ -241,7 +347,7 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
       lang,
       {
         onEvent: (event) => {
-          // Handle skill chain: create new session, complete old one
+          // 스킬 체인: 현재 세션 완료 → 새 세션 생성 → skill_changed 이벤트에 newSessionId 주입
           if (event.type === 'skill_changed') {
             const changeEvent = event as SSESkillChangedEvent;
             const targetSkill = skills.find((s) => s.name === changeEvent.newSkillName);
@@ -300,7 +406,7 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
     if (!abortController.signal.aborted) {
       sendSSE(res, { type: 'complete', sessionId: session.id, fullyComplete: result.fullyComplete });
       sessionManager.setStatus(session.id, result.fullyComplete ? 'completed' : 'waiting');
-      // Mark setup as completed when setup skill finishes successfully
+      // setup 스킬 정상 완료 시 .dmap/setup-completed 마커 생성 (재실행 방지)
       if (skillName === 'setup' && result.fullyComplete) {
         markSetupCompleted(dmapProjectDir).catch(() => {});
       }

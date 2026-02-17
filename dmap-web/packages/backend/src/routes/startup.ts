@@ -1,3 +1,23 @@
+/**
+ * 시작 점검 라우트 - DMAP Web 실행 환경 사전 점검
+ *
+ * 엔드포인트:
+ * - GET /api/startup-check: SSE 스트리밍으로 7개 항목 순차 점검 결과 전송
+ * - POST /api/startup-check/fix: 실패 항목 자동 수정 실행
+ *
+ * 점검 항목 (고정 순서):
+ * 0. Node.js 버전 (18+)
+ * 1. Node Modules (@anthropic-ai/claude-code)
+ * 2. Claude Code CLI
+ * 3. Claude 인증 상태
+ * 4. Oh My Claudecode 설치
+ * 5. OMC 설정 (CLAUDE.md 내 OMC 구성)
+ * 6. DMAP 플러그인 (cache 디렉토리)
+ *
+ * 병렬 실행 + 슬롯 기반 순서 보장: 모든 점검을 병렬로 실행하되, 결과는 고정 순서로 SSE 전송
+ *
+ * @module routes/startup
+ */
 import { Router } from 'express';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -10,6 +30,7 @@ const execAsync = promisify(exec);
 
 export const startupRouter = Router();
 
+/** 개별 점검 결과 - fixable: true면 POST /fix로 자동 수정 가능 */
 interface CheckResult {
   id: string;
   label: string;
@@ -38,7 +59,7 @@ async function runCommand(cmd: string, timeoutMs = 10000, cwd?: string): Promise
   }
 }
 
-// Parse `claude plugin list` output into plugin names + CLI availability
+/** claude plugin list 명령으로 설치된 플러그인 목록 조회 + CLI 가용성 확인 */
 async function getInstalledPlugins(): Promise<{ plugins: string[]; cliAvailable: boolean }> {
   const { stdout, stderr } = await runCommand('claude plugin list', 15000);
   const notFound = stderr.includes('not found') || stderr.includes('not recognized') ||
@@ -47,15 +68,10 @@ async function getInstalledPlugins(): Promise<{ plugins: string[]; cliAvailable:
   return { plugins: matches.map((m) => m[1]), cliAvailable: !notFound };
 }
 
-// Parse `claude plugin marketplace list` output into marketplace names
-async function getMarketplaces(): Promise<string[]> {
-  const { stdout } = await runCommand('claude plugin marketplace list', 15000);
-  const matches = [...stdout.matchAll(/❯\s+(\S+)/g)];
-  return matches.map((m) => m[1]);
-}
 
 // --- Check functions ---
 
+/** Node.js 버전 점검 - 18 이상 필요 */
 async function checkNodeVersion(): Promise<CheckResult> {
   const { stdout } = await runCommand('node --version');
   const version = stdout.trim().replace('v', '');
@@ -66,6 +82,7 @@ async function checkNodeVersion(): Promise<CheckResult> {
   return { id: 'node', label: 'Node.js', status: 'fail', detail: `v${version} — requires 18+ (https://nodejs.org)`, fixable: false };
 }
 
+/** @anthropic-ai/claude-code 패키지 설치 확인 - dmap-web/ 또는 루트 node_modules 탐색 */
 async function checkNodeModules(): Promise<CheckResult> {
   const candidates = [
     path.join(DMAP_PROJECT_DIR, 'dmap-web', 'node_modules', '@anthropic-ai', 'claude-code'),
@@ -79,6 +96,7 @@ async function checkNodeModules(): Promise<CheckResult> {
   return { id: 'node_modules', label: 'Node Modules', status: 'fail', detail: '@anthropic-ai/claude-code not found', fixable: true, fixAction: 'npm_install' };
 }
 
+/** Claude Code CLI 설치 확인 */
 function checkClaudeCli(cliAvailable: boolean): CheckResult {
   if (cliAvailable) {
     return { id: 'claude_cli', label: 'Claude Code CLI', status: 'pass', detail: 'Installed', fixable: false };
@@ -86,6 +104,7 @@ function checkClaudeCli(cliAvailable: boolean): CheckResult {
   return { id: 'claude_cli', label: 'Claude Code CLI', status: 'fail', detail: 'Not installed', fixable: true, fixAction: 'install_claude' };
 }
 
+/** Claude 인증 상태 확인 - settings.json 존재 + claude --version 실행 가능 여부 */
 async function checkClaudeAuth(): Promise<CheckResult> {
   const settingsFile = path.join(CLAUDE_DIR, 'settings.json');
   const hasSettings = fs.existsSync(settingsFile);
@@ -113,6 +132,7 @@ async function checkClaudeAuth(): Promise<CheckResult> {
   };
 }
 
+/** Oh My Claudecode 설치 확인 */
 async function checkOmc(): Promise<CheckResult> {
   const { stdout, stderr } = await runCommand('oh-my-claudecode --version');
   const output = (stdout || stderr).trim();
@@ -122,6 +142,7 @@ async function checkOmc(): Promise<CheckResult> {
   return { id: 'omc', label: 'Oh My Claudecode', status: 'fail', detail: 'Not installed', fixable: true, fixAction: 'setup_omc' };
 }
 
+/** OMC 설정 확인 - ~/.claude/CLAUDE.md에 OMC 구성 블록 존재 여부 */
 async function checkOmcSetup(): Promise<CheckResult> {
   const claudeMd = path.join(CLAUDE_DIR, 'CLAUDE.md');
   if (fs.existsSync(claudeMd)) {
@@ -137,20 +158,22 @@ async function checkOmcSetup(): Promise<CheckResult> {
   };
 }
 
-function checkDmap(marketplaces: string[], plugins: string[]): CheckResult {
-  const marketplaceName = 'unicorn';
-  const pluginName = 'dmap@unicorn';
-
-  const hasMarketplace = marketplaces.includes(marketplaceName);
-  const hasPlugin = plugins.includes(pluginName);
-
-  if (hasMarketplace && hasPlugin) {
-    return { id: 'dmap', label: 'DMAP Plugin', status: 'pass', detail: 'Installed', fixable: false };
+/** DMAP 플러그인 설치 확인 - ~/.claude/plugins/cache/unicorn/dmap 디렉토리의 버전 폴더 탐색 */
+function checkDmap(): CheckResult {
+  const cachePath = path.join(CLAUDE_DIR, 'plugins', 'cache', 'unicorn', 'dmap');
+  if (fs.existsSync(cachePath)) {
+    try {
+      const entries = fs.readdirSync(cachePath, { withFileTypes: true });
+      const versions = entries
+        .filter((e) => e.isDirectory() && /^\d+\.\d+\.\d+/.test(e.name))
+        .map((e) => e.name)
+        .sort();
+      if (versions.length > 0) {
+        return { id: 'dmap', label: 'DMAP Plugin', status: 'pass', detail: `v${versions[versions.length - 1]}`, fixable: false };
+      }
+    } catch { /* ignore read errors */ }
   }
-  if (!hasMarketplace) {
-    return { id: 'dmap', label: 'DMAP Plugin', status: 'fail', detail: 'Marketplace not registered', fixable: true, fixAction: 'setup_dmap' };
-  }
-  return { id: 'dmap', label: 'DMAP Plugin', status: 'fail', detail: 'Not installed', fixable: true, fixAction: 'install_dmap' };
+  return { id: 'dmap', label: 'DMAP Plugin', status: 'fail', detail: 'Not installed', fixable: true, fixAction: 'setup_dmap' };
 }
 
 // --- Routes ---
@@ -159,7 +182,7 @@ function checkDmap(marketplaces: string[], plugins: string[]): CheckResult {
 startupRouter.get('/', async (_req, res) => {
   initSSE(res);
 
-  // Fixed order: checks are emitted in this sequence regardless of completion order
+  // 슬롯 기반 순서 보장: 병렬 완료되는 점검 결과를 고정 순서(0~6)로 SSE 전송
   const TOTAL = 7;
   const slots: (CheckResult | null)[] = new Array(TOTAL).fill(null);
   let nextToEmit = 0;
@@ -178,7 +201,6 @@ startupRouter.get('/', async (_req, res) => {
 
   // Data fetchers (shared by dependent checks)
   const pluginPromise = getInstalledPlugins();
-  const marketplacePromise = getMarketplaces();
 
   // Fire all checks in parallel, each writes to its fixed slot
   await Promise.all([
@@ -194,8 +216,8 @@ startupRouter.get('/', async (_req, res) => {
     checkOmc().then((c) => setSlot(4, c)),
     // 5: OMC Setup
     checkOmcSetup().then((c) => setSlot(5, c)),
-    // 6: DMAP Plugin (depends on both marketplace + plugin list)
-    Promise.all([marketplacePromise, pluginPromise]).then(([mp, { plugins }]) => setSlot(6, checkDmap(mp, plugins))),
+    // 6: DMAP Plugin (cache directory check)
+    Promise.resolve(setSlot(6, checkDmap())),
   ]);
 
   const allPassed = slots.every((c) => c !== null && c.status !== 'fail');

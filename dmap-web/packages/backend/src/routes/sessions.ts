@@ -1,3 +1,14 @@
+/**
+ * 세션 라우트 - 스킬 실행 세션의 CRUD 및 사용자 응답 주입
+ *
+ * 엔드포인트:
+ * - GET /api/sessions: 전체 세션 목록 (pluginId 필터 지원)
+ * - GET /api/sessions/:id: 세션 상세 조회
+ * - POST /api/sessions/:id/respond: 대기 중인 세션에 사용자 응답 주입
+ * - DELETE /api/sessions/:id: 세션 삭제
+ *
+ * @module routes/sessions
+ */
 import { Router } from 'express';
 import { sessionManager } from '../services/session-manager.js';
 import type { SessionRespondRequest } from '@dmap-web/shared';
@@ -27,6 +38,7 @@ sessionsRouter.get('/:id', (req, res) => {
 });
 
 // POST /api/sessions/:id/respond - Send user response to waiting session
+// 사용자 응답을 대기 중인 세션에 주입 → SessionManager의 pendingResponse Promise를 resolve
 sessionsRouter.post('/:id/respond', (req, res) => {
   const { id } = req.params;
   const { response } = req.body as SessionRespondRequest;

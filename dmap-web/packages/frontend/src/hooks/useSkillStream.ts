@@ -1,3 +1,23 @@
+/**
+ * SSE 스트림 소비 훅 - 스킬 실행 결과를 실시간으로 수신하여 스토어에 반영
+ *
+ * 핵심 기능:
+ * 1. executeSkill(): POST /api/skills/:name/execute → SSE 스트림 소비 → 이벤트별 스토어 액션 매핑
+ * 2. respondToApproval(): 사용자 응답을 백엔드에 전달 (세션 재개)
+ * 3. stopStream(): 현재 스트림 abort
+ *
+ * SSE 이벤트 → 스토어 액션 매핑:
+ * - text → appStore.appendToLastMessage (채팅 메시지)
+ * - tool → activityStore.addToolEvent (도구 활동)
+ * - agent → activityStore.addAgentEvent (에이전트 활동)
+ * - usage → activityStore.setUsage (토큰/비용)
+ * - progress → activityStore.setProgressSteps/setActiveStep (진행률)
+ * - questions → pendingQuestionsRef에 임시 저장 (complete 시 처리)
+ * - skill_changed → appStore.switchSkillChain (스킬 체인 전환)
+ * - complete → 질문 표시 또는 완료 메시지 + activityStore.endExecution
+ *
+ * @module hooks/useSkillStream
+ */
 import { useCallback, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/appStore.js';
@@ -27,10 +47,20 @@ export function useSkillStream() {
   })));
 
   const t = useT();
+  /** 현재 SSE 스트림의 AbortController - 중복 실행 방지 및 stopStream용 */
   const abortRef = useRef<AbortController | null>(null);
+  /** ASK_USER 질문 임시 저장소 - questions 이벤트에서 저장, complete 이벤트에서 처리 */
   const pendingQuestionsRef = useRef<{ title: string; questions: QuestionItem[] } | null>(null);
+  /** 현재 실행 ID - stale 이벤트(이전 실행의 잔여 이벤트) 필터링용 */
   const executionIdRef = useRef<string | null>(null);
 
+  /**
+   * SSE 이벤트 핸들러 - 이벤트 타입별로 적절한 스토어 액션에 라우팅
+   *
+   * questions 이벤트는 즉시 UI에 표시하지 않고 pendingQuestionsRef에 저장.
+   * complete 이벤트 수신 시 비로소 QuestionFormDialog 또는 완료 메시지를 표시.
+   * 이유: questions 이벤트 후 추가 text 이벤트가 올 수 있으므로 complete까지 대기.
+   */
   const handleSSEEvent = useCallback(
     (event: SSEEvent) => {
       switch (event.type) {
@@ -155,6 +185,13 @@ export function useSkillStream() {
     [appendToLastMessage, addMessage, setPendingApproval, setSessionId, setStreaming, fetchSkills, switchSkillChain, t],
   );
 
+  /**
+   * 스킬 실행 - SSE 스트리밍으로 백엔드와 연결
+   *
+   * 흐름: fetch POST → ReadableStream → SSE 파싱 → handleSSEEvent 라우팅
+   * 이전 실행 abort → 새 AbortController 생성 → appStore에 등록 (ConfirmSwitchDialog용)
+   * executionId로 stale 이벤트 필터링 (이전 실행의 잔여 데이터 무시)
+   */
   const executeSkill = useCallback(
     async (skillName: string, args?: string, filePaths?: string[]) => {
       // Abort previous stream
@@ -202,7 +239,7 @@ export function useSkillStream() {
 
           buffer += decoder.decode(value, { stream: true });
 
-          // SSE events are separated by double newlines
+          // SSE 프로토콜 파싱: \n\n으로 이벤트 분리 → event:/data: 라인 추출 → JSON 파싱
           const parts = buffer.split('\n\n');
           buffer = parts.pop() || '';
 
@@ -223,7 +260,7 @@ export function useSkillStream() {
 
             if (!eventType || !data) continue;
 
-            // Ignore events from stale executions
+            // executionId 불일치 = 이전 실행의 잔여 이벤트 → 무시하고 abort
             if (executionIdRef.current !== executionId) {
               abortRef.current?.abort();
               break;
@@ -252,6 +289,7 @@ export function useSkillStream() {
     [addMessage, setStreaming, handleSSEEvent, t],
   );
 
+  /** 사용자 응답 전달 - 승인 해제 + 응답 메시지 추가 + 백엔드 세션에 응답 주입 */
   const respondToApproval = useCallback(
     async (sessionId: string, approvalId: string, answer: string) => {
       setPendingApproval(null);
@@ -266,6 +304,7 @@ export function useSkillStream() {
     [setPendingApproval, addMessage],
   );
 
+  /** 현재 스트림 강제 중단 - abortRef + appStore.abortCurrentStream 양쪽 abort */
   const stopStream = useCallback(() => {
     abortRef.current?.abort();
     useAppStore.getState().abortCurrentStream();

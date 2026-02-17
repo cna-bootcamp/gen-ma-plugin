@@ -1,3 +1,17 @@
+/**
+ * OMC(Oh-My-ClaudeCode) 통합 모듈 - OMC 에이전트 로딩 및 스킬 부스팅 패턴 주입
+ *
+ * OMC 에이전트 로딩 경로: ~/.claude/plugins/cache/omc/oh-my-claudecode/{version}/agents/
+ * 자동으로 최신 버전 디렉토리를 감지하여 에이전트 .md 파일을 로드.
+ *
+ * ESSENTIAL_AGENTS 필터: 12개 핵심 에이전트만 선별 로드 (토큰 절약)
+ * Windows 32KB CLI 한계 대응: full prompt 대신 description만 prompt로 사용
+ *
+ * 스킬 부스팅: SKILL.md에 /oh-my-claudecode:* 표기가 있으면
+ * 해당 패턴을 모델이 직접 실행하도록 가이드 주입 (외부 스킬 호출이 아님)
+ *
+ * @module omc-integration
+ */
 import { readdirSync, existsSync, readFileSync } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -6,6 +20,7 @@ import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('OMC');
 
+/** OMC 에이전트 정의 - SDK agents 옵션에 전달되는 에이전트 스펙 */
 export interface OmcAgentDef {
   description: string;
   prompt: string;
@@ -13,6 +28,11 @@ export interface OmcAgentDef {
   disallowedTools?: string[];
 }
 
+/**
+ * 필수 에이전트 화이트리스트 (12개)
+ * 스킬 패턴(plan, ralph, analyze 등)에서 실제 참조하는 에이전트만 포함
+ * 나머지 에이전트는 토큰 절약을 위해 로드하지 않음
+ */
 // 스킬 패턴에서 실제 참조하는 에이전트만 포함
 const ESSENTIAL_AGENTS = new Set([
   'architect',         // ralplan, ralph, analyze
@@ -30,6 +50,7 @@ const ESSENTIAL_AGENTS = new Set([
 ]);
 
 
+/** 에이전트별 기본 모델 매핑 - opus(심층 분석), sonnet(실행/검증), haiku(탐색) */
 const AGENT_MODELS: Record<string, string> = {
   architect: 'opus',
   planner: 'opus',
@@ -45,6 +66,7 @@ const AGENT_MODELS: Record<string, string> = {
   explore: 'haiku',
 };
 
+/** 에이전트별 역할 설명 - loadOmcAgents()에서 prompt로도 재사용 (Windows 32KB 제한) */
 const AGENT_DESCRIPTIONS: Record<string, string> = {
   architect: 'System design, code analysis, debugging, and verification (Opus)',
   executor: 'Code implementation, features, and refactoring (Sonnet)',
@@ -60,12 +82,14 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
   researcher: 'External SDK/API/package evaluation and documentation research (Sonnet)',
 };
 
+/** AGENT.md 프론트매터에서 disallowedTools 필드를 파싱 - 콤마 구분 문자열 → 배열 변환 */
 function parseFrontmatterDisallowedTools(content: string): string[] | undefined {
   const value = parseFrontmatterField(content, 'disallowedTools');
   if (!value) return undefined;
   return value.split(',').map((t) => t.trim()).filter(Boolean);
 }
 
+/** 시맨틱 버전 비교 (예: "1.2.3" vs "1.3.0") - findLatestVersion()에서 사용 */
 function compareVersions(a: string, b: string): number {
   const aParts = a.split('.').map(Number);
   const bParts = b.split('.').map(Number);
@@ -81,6 +105,7 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
+/** OMC 설치 디렉토리에서 최신 버전 디렉토리명 탐색 - 시맨틱 버전 정렬 후 마지막 선택 */
 function findLatestVersion(basePath: string): string | null {
   if (!existsSync(basePath)) {
     return null;
@@ -96,6 +121,15 @@ function findLatestVersion(basePath: string): string | null {
   return versionDirs.length > 0 ? versionDirs[versionDirs.length - 1] : null;
 }
 
+/**
+ * OMC 에이전트를 파일시스템에서 로드
+ *
+ * 경로: ~/.claude/plugins/cache/omc/oh-my-claudecode/{latestVersion}/agents/*.md
+ * ESSENTIAL_AGENTS에 포함된 에이전트만 로드하고, omc- 접두사로 FQN 생성
+ * Windows 32KB CLI 한계 대응으로 full prompt 대신 description을 prompt로 사용
+ *
+ * @returns 에이전트 맵(omc-{name} → OmcAgentDef) 또는 OMC 미설치 시 null
+ */
 export async function loadOmcAgents(): Promise<Record<
   string,
   OmcAgentDef
@@ -168,6 +202,13 @@ export async function loadOmcAgents(): Promise<Record<
   }
 }
 
+/**
+ * OMC 스킬 부스팅 패턴 가이드 생성 (OMC 에이전트 설치 시)
+ *
+ * SKILL.md에 /oh-my-claudecode:plan 등의 표기가 나타나면,
+ * 모델이 외부 스킬을 호출하는 것이 아니라 이 가이드의 패턴을 직접 실행.
+ * omc- 접두사 에이전트를 Task 도구로 위임하는 구체적 워크플로우 포함.
+ */
 export function getSkillPatterns(): string {
   return `
 ## OMC 스킬 부스팅 해석 규칙
@@ -191,8 +232,10 @@ SKILL.md 워크플로우에 아래 OMC FQN 참조가 등장하면, 해당 패턴
 | \`/oh-my-claudecode:cancel\` | 현재 워크플로우 즉시 중단 |
 | \`ulw\` 매직 키워드 | 해당 단계를 병렬 에이전트 위임 + 완료 보장으로 실행. Task 도구로 적절한 에이전트에 위임하고, 모든 하위 작업이 완료될 때까지 지속 |
 
-**중요**: \`/oh-my-claudecode:*\` 형식을 Skill 도구로 호출하지 마세요. Skill 도구는 사용할 수 없습니다.
-대신 위 매핑에 따라 해당 패턴의 행동을 직접 수행하세요.
+**중요**: \`/oh-my-claudecode:*\` 표기는 외부 스킬 호출이 **아닙니다**. Skill 도구로 호출하면 안 됩니다.
+이 표기가 나타나면, 아래 해당 패턴의 행동을 **당신이 직접** 수행해야 합니다.
+예: SKILL.md에 \`/oh-my-claudecode:ralph\`가 있으면, 아래 "ralph — Persistent Execution" 섹션의 행동 패턴을 그대로 따르세요.
+"스킬을 사용할 수 없다"거나 "다른 방법으로 대체한다"고 판단하지 마세요. 패턴은 항상 사용 가능합니다.
 
 ## OMC Skill Patterns
 
@@ -270,5 +313,44 @@ When user says "research" or "analyze data":
 1. Delegate to **omc-researcher** for external documentation/API research
 2. Optionally delegate to **omc-scientist** for data analysis
 3. Compile research findings
+`;
+}
+
+/**
+ * OMC 스킬 부스팅 패턴 가이드 (OMC 미설치 시 fallback)
+ *
+ * omc- 에이전트 없이도 동일한 워크플로우를 수행할 수 있도록
+ * built-in 에이전트(general-purpose, Explore, Bash)와 직접 수행으로 대체하는 가이드
+ */
+/**
+ * OMC 에이전트 미설치 시에도 스킬 부스팅 표기를 해석할 수 있도록 최소 가이드 제공.
+ * omc- 에이전트 대신 built-in 에이전트(general-purpose, Explore, Bash)와 직접 수행으로 대체.
+ */
+export function getSkillPatternsFallback(): string {
+  return `
+## OMC 스킬 부스팅 해석 규칙 (Fallback)
+
+SKILL.md 워크플로우에 \`/oh-my-claudecode:*\` 참조가 등장하면, 해당 패턴을 직접 실행하세요.
+이것은 외부 도구 호출이 **아닙니다**. Skill 도구로 호출하면 안 됩니다.
+
+**중요**: "스킬을 사용할 수 없다"거나 "다른 방법으로 대체한다"고 판단하지 마세요.
+아래 패턴은 OMC 에이전트 없이도 **항상 사용 가능**합니다.
+OMC 전용 에이전트(omc-*)가 없으므로, built-in 에이전트(general-purpose, Explore, Bash)를 활용하거나 직접 수행하세요.
+
+| SKILL.md 표기 | 실행 방법 |
+|---------------|----------|
+| \`/oh-my-claudecode:plan\` | 코드베이스 탐색 → 요구사항 분석 → 실행 계획 작성 → 사용자 승인 |
+| \`/oh-my-claudecode:ralplan\` | 계획 작성 → 기술 검토 → 비판적 평가 → 합의까지 반복 (최대 3회) |
+| \`/oh-my-claudecode:ralph\` | 작업을 하위 작업으로 분해 → 순차 실행 → 각 단계 검증 → 전체 완료까지 중단 없이 지속 |
+| \`/oh-my-claudecode:build-fix\` | 빌드/타입 체크 실행 → 에러 수집 → 수정 → 새 에러 없을 때까지 반복 |
+| \`/oh-my-claudecode:ultraqa\` | 테스트 실행 → 실패 수정 → 재실행 → 전체 통과까지 반복 (최대 5회) |
+| \`/oh-my-claudecode:review\` | 코드/계획 비판적 검토 → 결과 제시 |
+| \`/oh-my-claudecode:analyze\` | 코드 컨텍스트 수집 → 기술 분석 → 근본 원인 및 권장사항 제시 |
+| \`/oh-my-claudecode:deepsearch\` | 다양한 검색 전략(grep, glob, AST)으로 코드베이스 탐색 → 결과 종합 |
+| \`/oh-my-claudecode:code-review\` | 로직 오류, 보안, 성능, 스타일 종합 코드 리뷰 → 심각도별 결과 제시 |
+| \`/oh-my-claudecode:security-review\` | OWASP Top 10 기반 보안 분석 → 취약점 보고서 작성 |
+| \`/oh-my-claudecode:research\` | 외부 문서/API 리서치 → 데이터 분석 → 결과 종합 |
+| \`/oh-my-claudecode:cancel\` | 현재 워크플로우 즉시 중단 |
+| \`ulw\` 매직 키워드 | 해당 단계를 병렬 에이전트 위임 + 완료 보장으로 실행 |
 `;
 }

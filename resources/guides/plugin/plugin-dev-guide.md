@@ -386,7 +386,9 @@ with all arguments passed through.
 
 | 검증 항목 | 확인 내용 |
 |----------|----------|
+| 프로젝트 구조 | 표준 디렉토리 구조를 준수 |
 | 필수 파일 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` 존재 |
+| 필수 파일 구조 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` 이 스킬 메인 표준 준수 |
 | 에이전트 쌍 | 모든 에이전트에 `AGENT.md` + `agentcard.yaml` 존재 |
 | 스킬 구조 | 모든 스킬에 `SKILL.md` 존재, frontmatter 포함 |
 | setup 스킬 | setup 스킬 존재, `disable-model-invocation` 미사용 |
