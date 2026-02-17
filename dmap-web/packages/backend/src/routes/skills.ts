@@ -388,6 +388,7 @@ skillsRouter.post('/:name/execute', async (req: Request, res: Response) => {
       filePaths,
       abortController,
       session.previousSkillName,
+      skills.map(s => ({ name: s.name, description: s.description })),
     );
 
     if (lastUsage) {

@@ -86,6 +86,9 @@ interface SdkMessage {
 /** ASK_USER HTML 코멘트 블록 매칭 정규식 - 모델 출력에서 구조화된 질문 추출용 */
 const ASK_USER_REGEX_G = /<!--ASK_USER-->\s*([\s\S]*?)\s*<!--\/ASK_USER-->/g;
 
+/** RELEVANCE_MISMATCH HTML 코멘트 블록 매칭 정규식 - 스킬 관련성 불일치 감지용 */
+const RELEVANCE_MISMATCH_REGEX = /<!--RELEVANCE_MISMATCH-->\s*([\s\S]*?)\s*<!--\/RELEVANCE_MISMATCH-->/;
+
 /**
  * SKILL.md에서 Phase/Step 헤딩을 파싱하여 진행률 추적 데이터 생성
  *
@@ -142,6 +145,33 @@ function detectStepFromText(text: string, isPhaseMode: boolean): number | null {
     return Math.max(...matches.map(m => parseInt(m[1], 10)));
   }
   return null;
+}
+
+/**
+ * 모델 출력에서 <!--RELEVANCE_MISMATCH-->...<!--/RELEVANCE_MISMATCH--> 블록 추출
+ * ASK_USER/CHAIN과 독립적으로 먼저 실행하여, 공존 시에도 정상 처리
+ */
+function extractRelevanceMismatch(text: string): {
+  cleanText: string;
+  suggestedSkill: string;
+  reason: string;
+  isPromptMode: boolean;
+} | null {
+  const match = text.match(RELEVANCE_MISMATCH_REGEX);
+  if (!match) return null;
+
+  try {
+    const parsed = JSON.parse(match[1]);
+    const cleanText = text.replace(RELEVANCE_MISMATCH_REGEX, '').trim();
+    return {
+      cleanText,
+      suggestedSkill: String(parsed.suggestedSkill || '__prompt__'),
+      reason: String(parsed.reason || ''),
+      isPromptMode: !!parsed.isPromptMode,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -235,6 +265,24 @@ function buildFileAttachment(filePaths: string[] | undefined, isEnglish: boolean
     ? `\n\nAttached files:\n${fileList}\n\nRead the above files using the Read tool and refer to their contents.`
     : `\n\n첨부 파일:\n${fileList}\n\n위 파일들을 Read 도구로 읽어서 참고하세요.`;
 }
+
+/** 스킬 관련성 판단 지시문 - 사용자 입력이 현재 스킬과 무관할 때 추천 블록 출력 */
+const SKILL_RELEVANCE_INSTRUCTION = `
+SKILL RELEVANCE CHECK:
+Before executing, briefly assess if the user's current input is relevant to this skill.
+If the input is clearly unrelated to this skill's purpose, output the following block ONCE at the very beginning of your response, then continue with normal execution:
+
+<!--RELEVANCE_MISMATCH-->
+{"suggestedSkill":"<skill-name>","reason":"<brief explanation in user's language>","isPromptMode":<true|false>}
+<!--/RELEVANCE_MISMATCH-->
+
+Rules:
+- Output this block ONLY when the input is clearly unrelated. When uncertain, do NOT output it.
+- After outputting, proceed with the current skill's instructions normally. Do NOT stop execution.
+- suggestedSkill: pick from AVAILABLE SKILLS below. If none match, use "__prompt__".
+- isPromptMode: true only when suggestedSkill is "__prompt__".
+- reason: under 50 chars, same language as user input.
+`;
 
 /** 모델에게 주입되는 ASK_USER 프로토콜 지시문 - AskUserQuestion 도구 대신 HTML 코멘트 형식 사용 강제 */
 const ASK_USER_INSTRUCTION = `
@@ -335,8 +383,24 @@ async function runQuery(
       if (Array.isArray(content)) {
         for (const block of content) {
           if (block.type === 'text' && block.text) {
-            // Detect skill chain command (e.g., /dmap:develop-plugin)
-            const chainCommand = detectSkillChainCommand(block.text);
+            // 1. RELEVANCE_MISMATCH 독립 추출 (다른 패턴과 공존 가능)
+            let processText = block.text;
+            const relevance = extractRelevanceMismatch(processText);
+            if (relevance) {
+              callbacks.onEvent({
+                type: 'skill_suggestion',
+                suggestedSkill: relevance.suggestedSkill,
+                reason: relevance.reason,
+                isPromptMode: relevance.isPromptMode,
+              });
+              log.info(`Skill relevance mismatch: suggested ${relevance.suggestedSkill}`);
+              await fileLog?.('relevance_mismatch', relevance);
+              processText = relevance.cleanText;
+              if (!processText) break;
+            }
+
+            // 2. CHAIN>>> 감지 (기존)
+            const chainCommand = detectSkillChainCommand(processText);
             if (chainCommand) {
               log.info(`Detected skill chain: → ${chainCommand.skillName}`);
               await fileLog?.('skill_chain_detected', chainCommand);
@@ -350,7 +414,8 @@ async function runQuery(
               return { hasContent, sdkSessionId, pendingQuestions };
             }
 
-            const extracted = extractAskUserBlocks(block.text);
+            // 3. ASK_USER 감지 (기존)
+            const extracted = extractAskUserBlocks(processText);
             if (extracted) {
               if (extracted.cleanText) {
                 hasContent = true;
@@ -360,8 +425,9 @@ async function runQuery(
               log.info(`Parsed ${extracted.questions.length} structured questions`);
               await fileLog?.('parsed_questions', pendingQuestions);
             } else {
+              // 4. 일반 텍스트 (기존)
               hasContent = true;
-              callbacks.onEvent({ type: 'text', text: block.text });
+              callbacks.onEvent({ type: 'text', text: processText });
             }
           } else if (block.type === 'tool_use') {
             // AskUserQuestion 도구 호출 감지 → CLI 데드락 방지를 위해 즉시 abort
@@ -502,6 +568,7 @@ export async function executeSkill(
   filePaths?: string[],
   abortController?: AbortController,
   previousSkillName?: string,
+  availableSkills?: Array<{ name: string; description: string }>,
 ): Promise<ExecuteSkillResult> {
   // Always read SKILL.md (needed for appendSystemPrompt on every call, including resume)
   const skillPath = path.join(dmapProjectDir, 'skills', skillName, 'SKILL.md');
@@ -532,6 +599,15 @@ export async function executeSkill(
     ? basePluginGuide.replace('Use the full FQN as subagent_type.', `Use the full FQN as subagent_type (e.g., Task(subagent_type="${Object.keys(allAgents)[0] || 'scope:agent:agent'}", model="sonnet", prompt="...")).`)
     : '';
 
+  // Build available skill list for relevance check instruction
+  const skillListText = availableSkills
+    ? availableSkills
+        .filter(s => s.name !== skillName && s.name !== '__prompt__')
+        .map(s => `- ${s.name}: ${s.description}`)
+        .concat(['- __prompt__: 자유 프롬프트 (Free prompt mode)'])
+        .join('\n')
+    : '- __prompt__: 자유 프롬프트 (Free prompt mode)';
+
   // SDK 호출 옵션 구성 - permissionMode: bypassPermissions로 도구 승인 생략
   const options: Record<string, unknown> = {
     model: 'claude-sonnet-4-5-20250929',
@@ -548,6 +624,9 @@ You MUST respond ONLY in English. Every single message, explanation, question, a
 The skill instructions below are written in Korean — read and understand them, but ALL your output MUST be in English. Do NOT output any Korean text.
 ### END LANGUAGE OVERRIDE ###\n\n` : ''}IMPORTANT: You are a skill executor. Execute the skill instructions below using available tools (Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch, Task, etc.).${skillName.startsWith('ext-') ? ' You MAY use the Skill tool to invoke external plugin skills as specified in the skill instructions.' : ' Do NOT invoke other skills.'} Do NOT enter plan mode. Do NOT use TodoWrite.
 AGENT DELEGATION: You MAY use the Task tool for parallel or complex work. Available OMC agents are injected with "omc-" prefix. Use agent names like "omc-architect", "omc-executor", "omc-explore", "omc-planner", "omc-build-fixer", etc. You can also use built-in agents: "general-purpose", "Explore", "Plan", "Bash". Set the model parameter to "haiku", "sonnet", or "opus" for tier routing.${pluginAgentGuide}
+${SKILL_RELEVANCE_INSTRUCTION}
+AVAILABLE SKILLS:
+${skillListText}
 ${ASK_USER_INSTRUCTION}
 ${SKILL_CHAIN_FILE_CONVENTION}${previousSkillName ? `\n\nPREVIOUS SKILL RESULT:\nThe previous skill "${previousSkillName}" may have saved results at: output/${previousSkillName}-result.md\nRead this file FIRST using the Read tool before starting your workflow.` : ''}
 

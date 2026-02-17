@@ -14,7 +14,7 @@
  */
 import { Router } from 'express';
 import { getAllPlugins, addPlugin, removePlugin, validatePluginDir, resolveProjectDir, isSetupCompleted } from '../services/plugin-manager.js';
-import { syncPluginAgents, removeRegisteredPlugin, getMenus, saveMenus, generateDefaultMenus } from '../services/agent-registry.js';
+import { syncPluginAgents, removeRegisteredPlugin, getMenus, saveMenus, generateDefaultMenus, refreshExternalMenus } from '../services/agent-registry.js';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import path from 'path';
 import type { MenuConfig, MenuSubcategory, MenuSkillItem } from '@dmap-web/shared';
@@ -110,6 +110,18 @@ pluginsRouter.put('/:id/menus', async (req, res) => {
     }
     saveMenus(req.params.id, menus);
     res.json({ success: true });
+  } catch (error: unknown) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// POST /api/plugins/:id/menus/refresh - 외부 플러그인 메뉴 갱신 (ext-skill 추가/삭제 후 호출)
+pluginsRouter.post('/:id/menus/refresh', async (req, res) => {
+  try {
+    const pluginId = req.params.id;
+    const projectDir = await resolveProjectDir(pluginId);
+    const menus = refreshExternalMenus(pluginId, projectDir);
+    res.json(menus);
   } catch (error: unknown) {
     res.status(500).json({ error: (error as Error).message });
   }

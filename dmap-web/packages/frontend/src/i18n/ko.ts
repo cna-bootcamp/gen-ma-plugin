@@ -215,6 +215,12 @@ const ko: Translations = {
   'resume.empty': '대화 이력이 없습니다',
   'resume.newPrompt': '새 프롬프트',
 
+  // Relevance Banner
+  'relevance.suggestion': '이 입력은 {{skill}} 스킬이 더 적합할 수 있습니다',
+  'relevance.promptSuggestion': '이 입력은 프롬프트 모드가 더 적합할 수 있습니다',
+  'relevance.switch': '스킬 전환',
+  'relevance.dismiss': '무시',
+
   // Menu Management
   'menu.manage': '메뉴 관리',
   'menu.manage.tooltip': '스킬 메뉴를 커스터마이즈합니다',

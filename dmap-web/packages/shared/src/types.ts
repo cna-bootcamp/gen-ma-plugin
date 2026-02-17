@@ -2,7 +2,7 @@
  * 공유 타입 정의 - 백엔드/프론트엔드 간 공유되는 인터페이스 및 타입
  *
  * 주요 카테고리:
- * - SSE 이벤트: 백엔드→프론트엔드 실시간 스트리밍 이벤트 타입 (11종)
+ * - SSE 이벤트: 백엔드→프론트엔드 실시간 스트리밍 이벤트 타입 (12종)
  * - 메뉴: 사이드바 메뉴 구성 (core 하위카테고리 + utility + external)
  * - 스킬: SKILL.md 기반 스킬 메타데이터
  * - 세션: 스킬 실행 세션 상태 및 이력
@@ -14,7 +14,7 @@
 
 // SSE Event Types (Flat structure matching backend implementation)
 /** SSE 이벤트 타입 유니온 - 백엔드 claude-sdk-client에서 생성, 프론트엔드 useSkillStream에서 소비 */
-export type SSEEventType = 'text' | 'tool' | 'agent' | 'usage' | 'progress' | 'approval' | 'questions' | 'complete' | 'error' | 'done' | 'skill_changed';
+export type SSEEventType = 'text' | 'tool' | 'agent' | 'usage' | 'progress' | 'approval' | 'questions' | 'complete' | 'error' | 'done' | 'skill_changed' | 'skill_suggestion';
 
 /** 모델 텍스트 출력 이벤트 - ChatPanel의 MessageBubble에 렌더링 */
 export interface SSETextEvent {
@@ -100,6 +100,14 @@ export interface SSESkillChangedEvent {
   chainInput: string;
 }
 
+/** 스킬 관련성 불일치 추천 이벤트 - 사용자 입력이 현재 스킬과 무관할 때 적합한 스킬 추천 */
+export interface SSESkillSuggestionEvent {
+  type: 'skill_suggestion';
+  suggestedSkill: string;
+  reason: string;
+  isPromptMode: boolean;
+}
+
 /** 구조화된 질문 항목 - ASK_USER 프로토콜로 모델이 생성, QuestionFormDialog에서 렌더링 */
 export interface QuestionItem {
   question: string;
@@ -117,7 +125,7 @@ export interface SSEQuestionsEvent {
   questions: QuestionItem[];
 }
 
-/** SSE 이벤트 유니온 타입 - 11종의 이벤트를 discriminated union으로 정의 */
+/** SSE 이벤트 유니온 타입 - 12종의 이벤트를 discriminated union으로 정의 */
 export type SSEEvent =
   | SSETextEvent
   | SSEToolEvent
@@ -129,7 +137,8 @@ export type SSEEvent =
   | SSECompleteEvent
   | SSEErrorEvent
   | SSEDoneEvent
-  | SSESkillChangedEvent;
+  | SSESkillChangedEvent
+  | SSESkillSuggestionEvent;
 
 // Activity Panel Types
 /** 도구 호출 활동 로그 - 타임스탬프 포함, ActivityPanel에서 시간순 표시 */

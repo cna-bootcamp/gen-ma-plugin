@@ -35,6 +35,7 @@ export function useSkillStream() {
     setStreaming,
     setPendingApproval,
     fetchSkills,
+    refreshMenus,
     switchSkillChain,
   } = useAppStore(useShallow((s) => ({
     setSessionId: s.setSessionId,
@@ -43,6 +44,7 @@ export function useSkillStream() {
     setStreaming: s.setStreaming,
     setPendingApproval: s.setPendingApproval,
     fetchSkills: s.fetchSkills,
+    refreshMenus: s.refreshMenus,
     switchSkillChain: s.switchSkillChain,
   })));
 
@@ -53,6 +55,8 @@ export function useSkillStream() {
   const pendingQuestionsRef = useRef<{ title: string; questions: QuestionItem[] } | null>(null);
   /** 현재 실행 ID - stale 이벤트(이전 실행의 잔여 이벤트) 필터링용 */
   const executionIdRef = useRef<string | null>(null);
+  /** 현재 실행 중인 스킬명 - ext-skill 완료 시 메뉴 갱신 트리거용 */
+  const currentSkillRef = useRef<string | null>(null);
 
   /**
    * SSE 이벤트 핸들러 - 이벤트 타입별로 적절한 스토어 액션에 라우팅
@@ -129,6 +133,22 @@ export function useSkillStream() {
           }
           break;
         }
+        case 'skill_suggestion': {
+          const allSkills = useAppStore.getState().skills;
+          const suggested = allSkills.find((s) => s.name === event.suggestedSkill);
+          const currentLang = useLangStore.getState().lang;
+          const displayName = event.isPromptMode
+            ? (currentLang === 'ko' ? '프롬프트' : 'Prompt')
+            : (suggested?.displayName || event.suggestedSkill);
+
+          useAppStore.getState().setSkillSuggestion({
+            suggestedSkill: event.suggestedSkill,
+            suggestedSkillDisplayName: displayName,
+            reason: event.reason,
+            isPromptMode: event.isPromptMode,
+          });
+          break;
+        }
         case 'complete': {
           // Don't overwrite session ID if a skill chain has already set a new one
           const currentSessionId = useAppStore.getState().sessionId;
@@ -136,6 +156,11 @@ export function useSkillStream() {
             setSessionId(event.sessionId);
           }
           fetchSkills();
+          // ext-skill 추가/삭제 완료 시 메뉴 갱신 (사이드바 동기화)
+          const executedSkill = currentSkillRef.current;
+          if (executedSkill === 'add-ext-skill' || executedSkill === 'remove-ext-skill') {
+            refreshMenus();
+          }
           const storedQuestions = pendingQuestionsRef.current;
           pendingQuestionsRef.current = null;
           const isFullyComplete = event.fullyComplete;
@@ -182,7 +207,7 @@ export function useSkillStream() {
           break;
       }
     },
-    [appendToLastMessage, addMessage, setPendingApproval, setSessionId, setStreaming, fetchSkills, switchSkillChain, t],
+    [appendToLastMessage, addMessage, setPendingApproval, setSessionId, setStreaming, fetchSkills, refreshMenus, switchSkillChain, t],
   );
 
   /**
@@ -201,6 +226,7 @@ export function useSkillStream() {
 
       const executionId = crypto.randomUUID();
       executionIdRef.current = executionId;
+      currentSkillRef.current = skillName;
 
       // Register abort controller in appStore for centralized abort (ConfirmSwitchDialog)
       useAppStore.getState().setStreamAbortController(abortRef.current);

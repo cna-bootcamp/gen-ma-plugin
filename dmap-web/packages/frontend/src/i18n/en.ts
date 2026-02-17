@@ -215,6 +215,12 @@ const en: Translations = {
   'resume.empty': 'No conversations yet',
   'resume.newPrompt': 'New Prompt',
 
+  // Relevance Banner
+  'relevance.suggestion': 'This input may be better suited for the {{skill}} skill',
+  'relevance.promptSuggestion': 'This input may be better suited for Prompt mode',
+  'relevance.switch': 'Switch Skill',
+  'relevance.dismiss': 'Dismiss',
+
   // Menu Management
   'menu.manage': 'Manage Menu',
   'menu.manage.tooltip': 'Customize skill menu',

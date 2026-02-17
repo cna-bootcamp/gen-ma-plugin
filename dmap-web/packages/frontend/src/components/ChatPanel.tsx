@@ -18,6 +18,8 @@ import { ToolIndicator } from './ToolIndicator.js';
 import { TurnApprovalBar } from './TurnApprovalBar.js';
 import { FileBrowserDialog } from './FileBrowserDialog.js';
 import { SessionList } from './SessionList.js';
+import { RelevanceBanner } from './RelevanceBanner.js';
+import { PROMPT_SKILL } from '@dmap-web/shared';
 
 /** textarea 자동 크기 조절 상수 - 줄 높이(px), 최소/최대 행 수 */
 const LINE_HEIGHT = 22;
@@ -29,7 +31,7 @@ const MAX_ROWS = 10;
  * 구조: 헤더(스킬 정보+초기 입력) → 메시지 목록(스크롤) → 하단 입력(멀티턴) → 승인 다이얼로그
  */
 export function ChatPanel() {
-  const { selectedSkill, messages, isStreaming, pendingApproval, sessionId, selectedPlugin, isTranscriptView, clearTranscriptView } = useAppStore(useShallow((s) => ({
+  const { selectedSkill, messages, isStreaming, pendingApproval, sessionId, selectedPlugin, isTranscriptView, clearTranscriptView, skillSuggestion } = useAppStore(useShallow((s) => ({
     selectedSkill: s.selectedSkill,
     messages: s.messages,
     isStreaming: s.isStreaming,
@@ -38,6 +40,7 @@ export function ChatPanel() {
     selectedPlugin: s.selectedPlugin,
     isTranscriptView: s.isTranscriptView,
     clearTranscriptView: s.clearTranscriptView,
+    skillSuggestion: s.skillSuggestion,
   })));
   const { executeSkill, respondToApproval, stopStream } = useSkillStream();
   const { lang } = useLangStore();
@@ -295,6 +298,25 @@ export function ChatPanel() {
 
       {/* 메시지 목록: 세션 목록(빈 상태) → 메시지 버블 + 도구 인디케이터 → 스트리밍 표시기 */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 chat-scroll">
+        {skillSuggestion && (
+          <RelevanceBanner
+            suggestedSkillDisplayName={skillSuggestion.suggestedSkillDisplayName}
+            reason={skillSuggestion.reason}
+            isPromptMode={skillSuggestion.isPromptMode}
+            onSwitch={() => {
+              useAppStore.getState().abortCurrentStream();
+              const targetSkill = skillSuggestion.isPromptMode
+                ? PROMPT_SKILL
+                : useAppStore.getState().skills.find(s => s.name === skillSuggestion.suggestedSkill);
+              if (targetSkill) {
+                useAppStore.getState().selectSkill(targetSkill);
+              }
+              useAppStore.getState().dismissSkillSuggestion();
+            }}
+            onDismiss={() => useAppStore.getState().dismissSkillSuggestion()}
+          />
+        )}
+
         {messages.length === 0 && !isStreaming && (
           <SessionList skillName={selectedSkill.name} />
         )}

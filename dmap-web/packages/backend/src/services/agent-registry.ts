@@ -581,6 +581,41 @@ export function getMenus(pluginId: string, projectDir: string): MenuConfig {
 }
 
 /**
+ * 외부 플러그인 메뉴 갱신 - 디스크에서 스킬을 재스캔하여 external 카테고리만 업데이트
+ *
+ * core/utility 카테고리는 사용자 커스터마이징을 보존하고,
+ * external 카테고리만 현재 skills/ 디렉토리 상태로 동기화.
+ * add-ext-skill / remove-ext-skill 실행 후 호출.
+ */
+export function refreshExternalMenus(pluginId: string, projectDir: string): MenuConfig {
+  const data = loadPluginData(pluginId);
+  const currentSkills = discoverSkillsForMenus(projectDir);
+
+  // 디스크에서 현재 external 스킬 목록 구성
+  const freshExternal: MenuSkillItem[] = currentSkills
+    .filter(s => s.category === 'external')
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(s => ({ name: s.name, labels: s.labels }));
+
+  if (data?.menus) {
+    // core/utility 보존, external만 갱신
+    data.menus.external = freshExternal;
+    savePluginData(pluginId, data);
+    log.info(`Refreshed external menus for ${pluginId}: ${freshExternal.map(s => s.name).join(', ') || '(none)'}`);
+    return data.menus;
+  }
+
+  // 기존 메뉴 없으면 전체 기본 메뉴 생성
+  const menus = generateDefaultMenus(projectDir);
+  if (data) {
+    data.menus = menus;
+    savePluginData(pluginId, data);
+    log.info(`Generated default menus for ${pluginId} (no prior menus)`);
+  }
+  return menus;
+}
+
+/**
  * Save menus for a plugin (preserves agents and other data).
  */
 export function saveMenus(pluginId: string, menus: MenuConfig): void {

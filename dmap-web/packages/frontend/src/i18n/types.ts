@@ -211,6 +211,12 @@ export interface Translations {
   'resume.empty': string;
   'resume.newPrompt': string;
 
+  // Relevance Banner
+  'relevance.suggestion': string;
+  'relevance.promptSuggestion': string;
+  'relevance.switch': string;
+  'relevance.dismiss': string;
+
   // Menu Management
   'menu.manage': string;
   'menu.manage.tooltip': string;

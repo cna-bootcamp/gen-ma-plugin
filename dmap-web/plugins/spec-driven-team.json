@@ -187,6 +187,21 @@
         }
       }
     ],
-    "external": []
+    "external": [
+      {
+        "name": "ext-abra",
+        "labels": {
+          "ko": "Abra 연동",
+          "en": "Abra Integration"
+        }
+      },
+      {
+        "name": "ext-github-release-manager",
+        "labels": {
+          "ko": "GitHub Release 연동",
+          "en": "GitHub Release Integration"
+        }
+      }
+    ]
   }
 }

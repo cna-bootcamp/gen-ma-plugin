@@ -69,6 +69,14 @@ interface AppState {
   // Centralized stream abort
   streamAbortController: AbortController | null;
 
+  // Skill relevance suggestion
+  skillSuggestion: {
+    suggestedSkill: string;
+    suggestedSkillDisplayName: string;
+    reason: string;
+    isPromptMode: boolean;
+  } | null;
+
   // Actions
   fetchPlugins: () => Promise<void>;
   selectPlugin: (plugin: PluginInfo) => void;
@@ -77,6 +85,7 @@ interface AppState {
   syncAgents: (pluginId: string) => Promise<{ count: number; agents: string[] }>;
   fetchSkills: () => Promise<void>;
   fetchMenus: () => Promise<void>;
+  refreshMenus: () => Promise<void>;
   saveMenus: (menus: MenuConfig) => Promise<void>;
   selectSkill: (skill: SkillMeta) => void;
   setSessionId: (id: string) => void;
@@ -96,6 +105,8 @@ interface AppState {
   loadTranscriptSession: (sessionId: string, summary: string) => Promise<void>;
   clearTranscriptView: () => void;
   switchSkillChain: (newSkill: SkillMeta, newSessionId: string) => void;
+  setSkillSuggestion: (suggestion: AppState['skillSuggestion']) => void;
+  dismissSkillSuggestion: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -112,6 +123,7 @@ export const useAppStore = create<AppState>((set) => ({
   pendingApproval: null,
   pendingSkillSwitch: null,
   streamAbortController: null,
+  skillSuggestion: null,
 
   fetchPlugins: async () => {
     try {
@@ -213,6 +225,23 @@ export const useAppStore = create<AppState>((set) => ({
     }
   },
 
+  /** 외부 플러그인 메뉴 갱신 - 디스크에서 재스캔하여 external 카테고리 동기화 */
+  refreshMenus: async () => {
+    try {
+      const pluginId = useAppStore.getState().selectedPlugin?.id;
+      if (!pluginId) return;
+      const res = await fetch(`${API_BASE}/plugins/${pluginId}/menus/refresh`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        const data: MenuConfig = await res.json();
+        set({ menus: data });
+      }
+    } catch {
+      // Keep current menus on error
+    }
+  },
+
   saveMenus: async (menus: MenuConfig) => {
     const pluginId = useAppStore.getState().selectedPlugin?.id;
     if (!pluginId) return;
@@ -229,7 +258,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectSkill: (skill) => {
     // 스킬 전환 시 메시지/세션/승인 초기화 + activityStore 클리어
     useActivityStore.getState().clearActivity();
-    set({ selectedSkill: skill, messages: [], sessionId: null, pendingApproval: null, isTranscriptView: false });
+    set({ selectedSkill: skill, messages: [], sessionId: null, pendingApproval: null, isTranscriptView: false, skillSuggestion: null });
   },
 
   setSessionId: (id) => set({ sessionId: id }),
@@ -265,7 +294,7 @@ export const useAppStore = create<AppState>((set) => ({
   setStreaming: (streaming) => set({ isStreaming: streaming }),
   setPendingApproval: (approval) => set({ pendingApproval: approval }),
   clearChat: () =>
-    set({ messages: [], sessionId: null, pendingApproval: null, isStreaming: false, isTranscriptView: false }),
+    set({ messages: [], sessionId: null, pendingApproval: null, isStreaming: false, isTranscriptView: false, skillSuggestion: null }),
 
   setPendingSkillSwitch: (skill) => set({ pendingSkillSwitch: skill }),
 
@@ -366,6 +395,9 @@ export const useAppStore = create<AppState>((set) => ({
     set({ isTranscriptView: false, messages: [], sessionId: null, pendingApproval: null });
   },
 
+  setSkillSuggestion: (suggestion) => set({ skillSuggestion: suggestion }),
+  dismissSkillSuggestion: () => set({ skillSuggestion: null }),
+
   /** 스킬 체인 전환 - 새 스킬/세션으로 전환 + 전환 마커 메시지 추가 + activityStore 클리어 */
   switchSkillChain: (newSkill, newSessionId) => {
     useActivityStore.getState().clearActivity();
@@ -373,6 +405,7 @@ export const useAppStore = create<AppState>((set) => ({
       selectedSkill: newSkill,
       sessionId: newSessionId,
       pendingApproval: null,
+      skillSuggestion: null,
       // Keep messages but add transition marker
       messages: [...state.messages, {
         id: crypto.randomUUID(),
