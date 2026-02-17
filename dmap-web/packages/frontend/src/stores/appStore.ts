@@ -340,7 +340,11 @@ export const useAppStore = create<AppState>((set) => ({
       pendingApproval: null,
     });
     try {
-      const res = await fetch(`${API_BASE}/transcripts/${transcriptId}`);
+      const pluginId = useAppStore.getState().selectedPlugin?.id;
+      const transcriptUrl = pluginId
+        ? `${API_BASE}/transcripts/${transcriptId}?pluginId=${pluginId}`
+        : `${API_BASE}/transcripts/${transcriptId}`;
+      const res = await fetch(transcriptUrl);
       if (!res.ok) throw new Error('Failed to fetch transcript');
       const data = await res.json();
       const msgs: ChatMessage[] = (data.messages || []).map((m: any) => ({

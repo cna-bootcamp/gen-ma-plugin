@@ -209,6 +209,12 @@ const en: Translations = {
   'session.transcriptView': 'View Transcript',
   'session.backToList': 'Back',
 
+  // Resume Dropdown
+  'resume.title': 'Conversations',
+  'resume.tooltip': 'Conversations',
+  'resume.empty': 'No conversations yet',
+  'resume.newPrompt': 'New Prompt',
+
   // Menu Management
   'menu.manage': 'Manage Menu',
   'menu.manage.tooltip': 'Customize skill menu',

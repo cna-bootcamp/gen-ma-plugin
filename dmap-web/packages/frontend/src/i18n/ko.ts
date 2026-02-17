@@ -209,6 +209,12 @@ const ko: Translations = {
   'session.transcriptView': '대화이력 보기',
   'session.backToList': '돌아가기',
 
+  // Resume Dropdown
+  'resume.title': '대화 이력',
+  'resume.tooltip': '대화 이력',
+  'resume.empty': '대화 이력이 없습니다',
+  'resume.newPrompt': '새 프롬프트',
+
   // Menu Management
   'menu.manage': '메뉴 관리',
   'menu.manage.tooltip': '스킬 메뉴를 커스터마이즈합니다',

@@ -3,7 +3,6 @@ import path from 'path';
 import os from 'os';
 import { createReadStream } from 'fs';
 import readline from 'readline';
-import { DMAP_PROJECT_DIR } from '../config.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('Transcript');
@@ -36,10 +35,11 @@ function pathToProjectKey(projectPath: string): string {
 }
 
 /**
- * Returns the transcript directory path for the dmap project
+ * Returns the transcript directory path for the given project directory.
+ * @param projectDir - 프로젝트 경로 (필수)
  */
-export function getTranscriptDir(): string {
-  const projectKey = pathToProjectKey(DMAP_PROJECT_DIR);
+export function getTranscriptDir(projectDir: string): string {
+  const projectKey = pathToProjectKey(projectDir);
   return path.join(os.homedir(), '.claude', 'projects', projectKey);
 }
 
@@ -83,8 +83,8 @@ function isToolResult(record: any): boolean {
  * List all transcript sessions from the Claude Code projects directory
  * Sorted by lastModified descending (newest first)
  */
-export async function listTranscriptSessions(): Promise<TranscriptSession[]> {
-  const transcriptDir = getTranscriptDir();
+export async function listTranscriptSessions(projectDir: string): Promise<TranscriptSession[]> {
+  const transcriptDir = getTranscriptDir(projectDir);
 
   try {
     // Check if directory exists
@@ -105,16 +105,13 @@ export async function listTranscriptSessions(): Promise<TranscriptSession[]> {
         const filePath = path.join(transcriptDir, file);
         const stats = await fs.stat(filePath);
 
-        // Read first 20 lines to find first user message (like Claude Code /resume)
-        const lines = await readFirstLines(filePath, 20);
+        // Read first 50 lines to find first clean user message
+        const lines = await readFirstLines(filePath, 50);
         const userMessage = extractFirstUserMessage(lines);
 
-        // Use first user message as summary; fall back to summary field
-        let summary = userMessage || 'Untitled Session';
-        if (!userMessage) {
-          const firstRecord = lines.length > 0 ? parseJsonLine(lines[0]) : null;
-          if (firstRecord?.summary) summary = firstRecord.summary;
-        }
+        // Skip sessions with no real user message (system-only sessions)
+        if (!userMessage) continue;
+        let summary = userMessage;
         // Truncate long summaries
         if (summary.length > 120) summary = summary.slice(0, 117) + '...';
 
@@ -175,8 +172,24 @@ async function readFirstLines(filePath: string, maxLines: number): Promise<strin
 }
 
 /**
+ * Patterns that indicate system-injected content (not real user input)
+ */
+const SYSTEM_CONTENT_PATTERNS = [
+  /^<[a-z-]+>/i,                          // XML-like tags: <system-reminder>, <local-command-caveat>, etc.
+  /^Implement the following plan:/i,       // Plan mode injection
+  /^Use the Skill tool to invoke/i,        // Skill invocation injection
+];
+
+/**
+ * Check if text looks like system-injected content rather than real user input
+ */
+function isSystemContent(text: string): boolean {
+  return SYSTEM_CONTENT_PATTERNS.some(pattern => pattern.test(text.trim()));
+}
+
+/**
  * Extract the first user message text from JSONL lines.
- * Claude Code /resume shows the first user input, so we do the same.
+ * Skips system-injected content (tags, plan injections, etc.)
  */
 function extractFirstUserMessage(lines: string[]): string | null {
   for (const line of lines) {
@@ -188,10 +201,10 @@ function extractFirstUserMessage(lines: string[]): string | null {
     const content = record.message?.content;
     if (Array.isArray(content)) {
       const text = extractTextContent(content);
-      if (text) return text;
+      if (text && !isSystemContent(text)) return text;
     }
     // Try plain string content
-    if (typeof content === 'string' && content.trim()) {
+    if (typeof content === 'string' && content.trim() && !isSystemContent(content)) {
       return content.trim();
     }
   }
@@ -201,12 +214,12 @@ function extractFirstUserMessage(lines: string[]): string | null {
 /**
  * Delete a specific transcript session JSONL file
  */
-export async function deleteTranscriptSession(sessionId: string): Promise<boolean> {
+export async function deleteTranscriptSession(sessionId: string, projectDir: string): Promise<boolean> {
   if (!isValidSessionId(sessionId)) {
     throw new Error(`Invalid session ID: ${sessionId}`);
   }
 
-  const transcriptDir = getTranscriptDir();
+  const transcriptDir = getTranscriptDir(projectDir);
   const filePath = path.join(transcriptDir, `${sessionId}.jsonl`);
 
   try {
@@ -221,8 +234,8 @@ export async function deleteTranscriptSession(sessionId: string): Promise<boolea
 /**
  * Delete multiple transcript sessions by their IDs
  */
-export async function deleteBatchTranscriptSessions(ids: string[]): Promise<number> {
-  const transcriptDir = getTranscriptDir();
+export async function deleteBatchTranscriptSessions(ids: string[], projectDir: string): Promise<number> {
+  const transcriptDir = getTranscriptDir(projectDir);
   let deleted = 0;
 
   for (const id of ids) {
@@ -242,12 +255,12 @@ export async function deleteBatchTranscriptSessions(ids: string[]): Promise<numb
  * Get all messages from a specific transcript session
  * Returns messages sorted by timestamp ascending
  */
-export async function getTranscriptMessages(sessionId: string): Promise<TranscriptMessage[]> {
+export async function getTranscriptMessages(sessionId: string, projectDir: string): Promise<TranscriptMessage[]> {
   if (!isValidSessionId(sessionId)) {
     throw new Error(`Invalid session ID: ${sessionId}`);
   }
 
-  const transcriptDir = getTranscriptDir();
+  const transcriptDir = getTranscriptDir(projectDir);
   const filePath = path.join(transcriptDir, `${sessionId}.jsonl`);
 
   try {

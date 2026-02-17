@@ -205,6 +205,12 @@ export interface Translations {
   'session.transcriptView': string;
   'session.backToList': string;
 
+  // Resume Dropdown
+  'resume.title': string;
+  'resume.tooltip': string;
+  'resume.empty': string;
+  'resume.newPrompt': string;
+
   // Menu Management
   'menu.manage': string;
   'menu.manage.tooltip': string;

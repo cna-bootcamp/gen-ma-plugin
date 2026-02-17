@@ -34,13 +34,15 @@ interface SessionListProps {
 }
 
 export function SessionList({ skillName }: SessionListProps) {
-  const { sessions, fetchSessions, isStreaming, loadTranscriptSession } = useAppStore(useShallow((s) => ({
+  const { sessions, fetchSessions, isStreaming, loadTranscriptSession, selectedPlugin } = useAppStore(useShallow((s) => ({
     sessions: s.sessions,
     fetchSessions: s.fetchSessions,
     isStreaming: s.isStreaming,
     loadTranscriptSession: s.loadTranscriptSession,
+    selectedPlugin: s.selectedPlugin,
   })));
   const t = useT();
+  const pluginId = selectedPlugin?.id;
   const [transcriptSessions, setTranscriptSessions] = useState<TranscriptSession[]>([]);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -48,14 +50,17 @@ export function SessionList({ skillName }: SessionListProps) {
 
   useEffect(() => {
     fetchSessions();
-    // Always fetch transcripts - filter by sdkSessionId matching
+    // Fetch transcripts for current plugin's project directory
     setTranscriptLoading(true);
-    fetch('/api/transcripts')
+    const url = pluginId ? `/api/transcripts?pluginId=${pluginId}` : '/api/transcripts';
+    fetch(url)
       .then(res => res.ok ? res.json() : { sessions: [] })
       .then(data => setTranscriptSessions(data.sessions || []))
       .catch(() => setTranscriptSessions([]))
       .finally(() => setTranscriptLoading(false));
-  }, [fetchSessions]);
+  }, [fetchSessions, pluginId]);
+
+  const isPromptSkill = skillName === '__prompt__';
 
   const filtered = skillName
     ? sessions.filter(s => s.skillName === skillName)
@@ -65,13 +70,14 @@ export function SessionList({ skillName }: SessionListProps) {
   const skillSdkIds = new Set(
     filtered.filter(s => s.sdkSessionId).map(s => s.sdkSessionId!)
   );
-  // Filter transcripts: only show skill-matched transcripts
-  // (no longer include orphan transcripts for prompt skill -
-  //  orphans are CLI sessions not created through dmap-web)
+  // Prompt skill: show ALL transcripts for the current project (like Claude Code /resume)
+  // Other skills: only show skill-matched transcripts
   // Sort descending by lastModified (newest first)
-  const filteredTranscripts = transcriptSessions
-    .filter(ts => skillSdkIds.has(ts.id))
-    .sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
+  const filteredTranscripts = isPromptSkill
+    ? [...transcriptSessions].sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime())
+    : transcriptSessions
+        .filter(ts => skillSdkIds.has(ts.id))
+        .sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
 
   const handleTranscriptClick = useCallback((ts: TranscriptSession) => {
     if (isStreaming) return;
@@ -80,13 +86,14 @@ export function SessionList({ skillName }: SessionListProps) {
 
   const handleDelete = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`/api/transcripts/${id}`, { method: 'DELETE' });
+      const deleteUrl = pluginId ? `/api/transcripts/${id}?pluginId=${pluginId}` : `/api/transcripts/${id}`;
+      const res = await fetch(deleteUrl, { method: 'DELETE' });
       if (res.ok) {
         setTranscriptSessions(prev => prev.filter(ts => ts.id !== id));
       }
     } catch { /* ignore */ }
     setConfirmDeleteId(null);
-  }, []);
+  }, [pluginId]);
 
   const handleDeleteAll = useCallback(async () => {
     try {
@@ -95,7 +102,7 @@ export function SessionList({ skillName }: SessionListProps) {
       const res = await fetch('/api/transcripts', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ ids, pluginId }),
       });
       if (res.ok) {
         const deletedSet = new Set(ids);
