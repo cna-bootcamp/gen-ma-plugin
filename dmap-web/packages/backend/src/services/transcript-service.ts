@@ -7,9 +7,57 @@ import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('Transcript');
 
+// ── sessions-index.json 타입 ──
+
+/** Claude Code sessions-index.json 엔트리 */
+interface SessionsIndexEntry {
+  sessionId: string;
+  fullPath: string;
+  fileMtime: number;
+  firstPrompt: string;
+  summary?: string;
+  messageCount: number;
+  created: string;
+  modified: string;
+  gitBranch?: string;
+  projectPath?: string;
+  isSidechain?: boolean;
+}
+
+/** Claude Code sessions-index.json 최상위 구조 */
+interface SessionsIndex {
+  version: number;
+  entries: SessionsIndexEntry[];
+}
+
+// ── sessions-index.json 헬퍼 ──
+
+/** sessions-index.json 경로 반환 */
+function getSessionsIndexPath(projectDir: string): string {
+  const transcriptDir = getTranscriptDir(projectDir);
+  return path.join(transcriptDir, 'sessions-index.json');
+}
+
+/** sessions-index.json 읽기 (없으면 null 반환) */
+async function loadSessionsIndex(projectDir: string): Promise<SessionsIndex | null> {
+  try {
+    const data = await fs.readFile(getSessionsIndexPath(projectDir), 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+}
+
+/** sessions-index.json 저장 */
+async function saveSessionsIndex(projectDir: string, index: SessionsIndex): Promise<void> {
+  await fs.writeFile(getSessionsIndexPath(projectDir), JSON.stringify(index, null, 2), 'utf-8');
+}
+
+// ── 타이틀 오버라이드 (dmap 전용 백업) ──
+
 /**
  * 타이틀 오버라이드 파일 경로 반환
- * 사용자가 수정한 대화 타이틀을 저장하는 JSON 파일
+ * sessions-index.json이 없을 때 사용하는 dmap 전용 백업 저장소
  */
 function getTitleOverridesPath(projectDir: string): string {
   return path.join(projectDir, '.dmap', 'transcript-titles.json');
@@ -25,11 +73,35 @@ async function loadTitleOverrides(projectDir: string): Promise<Record<string, st
   }
 }
 
-/** 타이틀 오버라이드 저장 - 빈 문자열이면 오버라이드 삭제 (원본 복원) */
+/**
+ * 타이틀 저장 - sessions-index.json의 summary 필드를 우선 수정 (Claude Code 동기화)
+ * sessions-index.json이 없으면 .dmap/transcript-titles.json에 백업 저장
+ */
 export async function saveTitleOverride(sessionId: string, title: string, projectDir: string): Promise<void> {
   if (!isValidSessionId(sessionId)) {
     throw new Error(`Invalid session ID: ${sessionId}`);
   }
+
+  const trimmed = title.trim();
+
+  // 1) sessions-index.json에 직접 수정 (Claude Code와 동기화)
+  const index = await loadSessionsIndex(projectDir);
+  if (index) {
+    const entry = index.entries.find(e => e.sessionId === sessionId);
+    if (entry) {
+      if (trimmed) {
+        entry.summary = trimmed;
+      } else {
+        // 빈 문자열이면 firstPrompt로 복원
+        entry.summary = undefined;
+      }
+      await saveSessionsIndex(projectDir, index);
+      log.info(`Title updated in sessions-index.json: ${sessionId}`);
+      return;
+    }
+  }
+
+  // 2) sessions-index.json이 없거나 해당 엔트리가 없으면 dmap 백업에 저장
   const overridesPath = getTitleOverridesPath(projectDir);
   await fs.mkdir(path.dirname(overridesPath), { recursive: true });
 
@@ -38,7 +110,6 @@ export async function saveTitleOverride(sessionId: string, title: string, projec
     overrides = JSON.parse(await fs.readFile(overridesPath, 'utf-8'));
   } catch { /* new file */ }
 
-  const trimmed = title.trim();
   if (trimmed) {
     overrides[sessionId] = trimmed;
   } else {
@@ -121,68 +192,104 @@ function isToolResult(record: any): boolean {
 }
 
 /**
- * List all transcript sessions from the Claude Code projects directory
+ * sessions-index.json에서 세션 목록 생성
+ * Claude Code와 동일한 데이터소스 사용
+ */
+async function listFromSessionsIndex(index: SessionsIndex): Promise<TranscriptSession[]> {
+  return index.entries
+    .filter(e => !e.isSidechain)
+    .map(e => {
+      const title = e.summary || e.firstPrompt || '';
+      return {
+        id: e.sessionId,
+        summary: title.length > 120 ? title.slice(0, 117) + '...' : title,
+        lastModified: e.modified || new Date(e.fileMtime).toISOString(),
+        fileSize: 0,
+        messageCount: e.messageCount ?? -1,
+      };
+    })
+    .filter(s => s.summary && s.summary !== 'No prompt')
+    .sort((a, b) =>
+      new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+    );
+}
+
+/**
+ * .jsonl 파일 스캔으로 세션 목록 생성 (fallback)
+ * sessions-index.json이 없을 때 사용
+ */
+async function listFromJsonlFiles(transcriptDir: string, projectDir: string): Promise<TranscriptSession[]> {
+  const files = await fs.readdir(transcriptDir);
+  const jsonlFiles = files.filter((f: string) => f.endsWith('.jsonl'));
+
+  const sessions: TranscriptSession[] = [];
+
+  for (const file of jsonlFiles) {
+    try {
+      const filePath = path.join(transcriptDir, file);
+      const stats = await fs.stat(filePath);
+
+      // Read first 200 lines to find first clean user message
+      const lines = await readFirstLines(filePath, 200);
+      const userMessage = extractFirstUserMessage(lines);
+
+      // Skip sessions with no real user message (system-only sessions)
+      if (!userMessage) continue;
+      let summary = userMessage;
+      // Truncate long summaries
+      if (summary.length > 120) summary = summary.slice(0, 117) + '...';
+
+      sessions.push({
+        id: path.parse(file).name,
+        summary,
+        lastModified: stats.mtime.toISOString(),
+        fileSize: stats.size,
+        messageCount: -1,
+      });
+    } catch (err) {
+      log.error(`Failed to read ${file}:`, err);
+    }
+  }
+
+  // Apply title overrides (user-edited titles)
+  const overrides = await loadTitleOverrides(projectDir);
+  for (const session of sessions) {
+    if (overrides[session.id]) {
+      session.summary = overrides[session.id];
+    }
+  }
+
+  sessions.sort((a, b) =>
+    new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+  );
+
+  return sessions;
+}
+
+/**
+ * 세션 목록 조회 - sessions-index.json 우선, 없으면 .jsonl 스캔 fallback
  * Sorted by lastModified descending (newest first)
  */
 export async function listTranscriptSessions(projectDir: string): Promise<TranscriptSession[]> {
   const transcriptDir = getTranscriptDir(projectDir);
 
   try {
-    // Check if directory exists
     await fs.access(transcriptDir);
   } catch {
-    // Directory doesn't exist, return empty array
     return [];
   }
 
   try {
-    const files = await fs.readdir(transcriptDir);
-    const jsonlFiles = files.filter((f: string) => f.endsWith('.jsonl'));
-
-    const sessions: TranscriptSession[] = [];
-
-    for (const file of jsonlFiles) {
-      try {
-        const filePath = path.join(transcriptDir, file);
-        const stats = await fs.stat(filePath);
-
-        // Read first 50 lines to find first clean user message
-        const lines = await readFirstLines(filePath, 50);
-        const userMessage = extractFirstUserMessage(lines);
-
-        // Skip sessions with no real user message (system-only sessions)
-        if (!userMessage) continue;
-        let summary = userMessage;
-        // Truncate long summaries
-        if (summary.length > 120) summary = summary.slice(0, 117) + '...';
-
-        sessions.push({
-          id: path.parse(file).name,
-          summary,
-          lastModified: stats.mtime.toISOString(),
-          fileSize: stats.size,
-          messageCount: -1, // Placeholder - will count when viewing individual session
-        });
-      } catch (err) {
-        // Skip files that can't be read
-        log.error(`Failed to read ${file}:`, err);
-      }
+    // 1) sessions-index.json 우선 사용 (Claude Code와 동일한 데이터소스)
+    const index = await loadSessionsIndex(projectDir);
+    if (index?.entries?.length) {
+      log.info(`Loaded ${index.entries.length} sessions from sessions-index.json`);
+      return listFromSessionsIndex(index);
     }
 
-    // Apply title overrides (user-edited titles)
-    const overrides = await loadTitleOverrides(projectDir);
-    for (const session of sessions) {
-      if (overrides[session.id]) {
-        session.summary = overrides[session.id];
-      }
-    }
-
-    // Sort by lastModified descending (newest first)
-    sessions.sort((a, b) =>
-      new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
-    );
-
-    return sessions;
+    // 2) Fallback: .jsonl 파일 직접 스캔
+    log.info('sessions-index.json not found, falling back to .jsonl scan');
+    return listFromJsonlFiles(transcriptDir, projectDir);
   } catch (err) {
     log.error('Failed to list sessions:', err);
     return [];
