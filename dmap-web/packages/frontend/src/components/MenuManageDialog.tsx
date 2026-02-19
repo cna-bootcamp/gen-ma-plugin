@@ -26,6 +26,19 @@ interface DropTarget {
   insertIdx: number;
 }
 
+/** Flat drag source: for utility / external categories */
+interface FlatDragSource {
+  category: 'utility' | 'external';
+  skillIdx: number;
+  item: MenuSkillItem;
+}
+
+/** Flat drop target: for utility / external categories */
+interface FlatDropTarget {
+  category: 'utility' | 'external';
+  insertIdx: number;
+}
+
 const CATEGORY_LABELS: Record<CategoryKey, { ko: string; en: string }> = {
   core: { ko: '핵심', en: 'Core' },
   utility: { ko: '유틸리티', en: 'Utility' },
@@ -54,10 +67,16 @@ export function MenuManageDialog({ onClose }: Props) {
     return menus.core.length > 1;
   });
 
-  // ─── Drag & Drop state ───
+  // ─── Drag & Drop state (core) ───
   const dragSourceRef = useRef<DragSource | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // ─── Drag & Drop state (utility / external) ───
+  const flatDragSourceRef = useRef<FlatDragSource | null>(null);
+  const [flatDropTarget, setFlatDropTarget] = useState<FlatDropTarget | null>(null);
+  const [isFlatDragging, setIsFlatDragging] = useState(false);
+  const [foreignDragOver, setForeignDragOver] = useState<CategoryKey | null>(null);
 
   // ─── Subcategory memory: remember structure when toggling off ───
   const savedCategorizedRef = useRef<MenuSubcategory[] | null>(null);
@@ -126,6 +145,57 @@ export function MenuManageDialog({ onClose }: Props) {
     });
   }, []);
 
+  // ─── Flat skill operations (utility / external) ───
+
+  const updateFlatSkillLabel = useCallback((category: 'utility' | 'external', skillIdx: number, langKey: 'ko' | 'en', value: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      [category]: prev[category].map((sk, i) => i === skillIdx ? { ...sk, labels: { ...sk.labels, [langKey]: value } } : sk),
+    }));
+  }, []);
+
+  // ─── Flat drag & drop handlers (utility / external) ───
+
+  const handleFlatDragStart = useCallback((e: React.DragEvent, category: 'utility' | 'external', skillIdx: number, item: MenuSkillItem) => {
+    flatDragSourceRef.current = { category, skillIdx, item };
+    setIsFlatDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', item.name);
+  }, []);
+
+  const handleFlatDragEnd = useCallback(() => {
+    flatDragSourceRef.current = null;
+    setFlatDropTarget(null);
+    setIsFlatDragging(false);
+    setForeignDragOver(null);
+  }, []);
+
+  const handleFlatDragOverSkill = useCallback((e: React.DragEvent, category: 'utility' | 'external', insertIdx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setFlatDropTarget({ category, insertIdx });
+  }, []);
+
+  const handleFlatDrop = useCallback((e: React.DragEvent, targetCategory: 'utility' | 'external', targetInsertIdx: number) => {
+    e.preventDefault();
+    const source = flatDragSourceRef.current;
+    if (!source || source.category !== targetCategory) return;
+
+    setDraft((prev) => {
+      const arr = [...prev[targetCategory]];
+      arr.splice(source.skillIdx, 1);
+      let adjustedIdx = targetInsertIdx;
+      if (source.skillIdx < targetInsertIdx) adjustedIdx--;
+      arr.splice(adjustedIdx, 0, source.item);
+      return { ...prev, [targetCategory]: arr };
+    });
+
+    flatDragSourceRef.current = null;
+    setFlatDropTarget(null);
+    setIsFlatDragging(false);
+    setForeignDragOver(null);
+  }, []);
+
   // ─── Skill operations within subcategory (core) ───
 
   const moveSkillInSubcat = useCallback((subIdx: number, skillIdx: number, dir: -1 | 1) => {
@@ -160,6 +230,7 @@ export function MenuManageDialog({ onClose }: Props) {
     dragSourceRef.current = null;
     setDropTarget(null);
     setIsDragging(false);
+    setForeignDragOver(null);
   }, []);
 
   const handleDragOverSkill = useCallback((e: React.DragEvent, subIdx: number, insertIdx: number) => {
@@ -277,19 +348,21 @@ export function MenuManageDialog({ onClose }: Props) {
           <span className="text-sm text-gray-500 dark:text-gray-400 w-24 truncate shrink-0" title={item.name}>
             {item.name}
           </span>
-          {/* KO label */}
+          {/* KO label (20자 이내) */}
           <input
             type="text"
             value={item.labels.ko}
+            maxLength={20}
             onChange={(e) => updateSkillLabel(subIdx, skillIdx, 'ko', e.target.value)}
             onClick={(e) => e.stopPropagation()}
             className="flex-1 min-w-0 text-sm px-2 py-1 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:border-blue-400 outline-none"
             placeholder="한국어"
           />
-          {/* EN label */}
+          {/* EN label (20자 이내) */}
           <input
             type="text"
             value={item.labels.en}
+            maxLength={20}
             onChange={(e) => updateSkillLabel(subIdx, skillIdx, 'en', e.target.value)}
             onClick={(e) => e.stopPropagation()}
             className="flex-1 min-w-0 text-sm px-2 py-1 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:border-blue-400 outline-none"
@@ -304,21 +377,95 @@ export function MenuManageDialog({ onClose }: Props) {
     );
   };
 
+  const renderFlatSkillRow = (category: 'utility' | 'external', item: MenuSkillItem, skillIdx: number, totalSkills: number) => {
+    const isDropAbove = flatDropTarget?.category === category && flatDropTarget.insertIdx === skillIdx;
+    const isDropBelow = flatDropTarget?.category === category && flatDropTarget.insertIdx === skillIdx + 1 && skillIdx === totalSkills - 1;
+    const isBeingDragged = isFlatDragging && flatDragSourceRef.current?.category === category && flatDragSourceRef.current?.skillIdx === skillIdx;
+
+    return (
+      <div key={item.name}>
+        {isDropAbove && (
+          <div className="h-0.5 bg-blue-400 rounded mx-2 my-0.5" />
+        )}
+        <div
+          draggable
+          onDragStart={(e) => handleFlatDragStart(e, category, skillIdx, item)}
+          onDragEnd={handleFlatDragEnd}
+          onDragOver={(e) => handleFlatDragOverSkill(e, category, skillIdx)}
+          onDrop={(e) => handleFlatDrop(e, category, skillIdx)}
+          className={`flex items-center gap-2 py-1.5 px-2 rounded transition-opacity ${
+            isBeingDragged ? 'opacity-30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+          } group cursor-grab active:cursor-grabbing`}
+        >
+          {/* Drag handle */}
+          <span className="text-gray-300 dark:text-gray-600 text-sm select-none">&#8942;&#8942;</span>
+          {/* Skill name (read-only) */}
+          <span className="text-sm text-gray-500 dark:text-gray-400 w-24 truncate shrink-0" title={item.name}>
+            {item.name}
+          </span>
+          {/* KO label */}
+          <input
+            type="text"
+            value={item.labels.ko}
+            maxLength={20}
+            onChange={(e) => updateFlatSkillLabel(category, skillIdx, 'ko', e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 min-w-0 text-sm px-2 py-1 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:border-blue-400 outline-none"
+            placeholder="한국어"
+          />
+          {/* EN label */}
+          <input
+            type="text"
+            value={item.labels.en}
+            maxLength={20}
+            onChange={(e) => updateFlatSkillLabel(category, skillIdx, 'en', e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 min-w-0 text-sm px-2 py-1 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:border-blue-400 outline-none"
+            placeholder="English"
+          />
+        </div>
+        {isDropBelow && (
+          <div className="h-0.5 bg-blue-400 rounded mx-2 my-0.5" />
+        )}
+      </div>
+    );
+  };
+
   const renderSubcategory = (subcat: MenuSubcategory, subIdx: number, totalSubs: number) => {
     const isDropHere = isDragging && dropTarget?.subIdx === subIdx;
+    const isForeignHere = isFlatDragging;
 
     return (
       <div
         key={subcat.id}
         className={`mb-3 border rounded-lg p-3 transition-colors ${
-          isDropHere
-            ? 'border-blue-400 dark:border-blue-500 bg-blue-50/30 dark:bg-blue-900/10'
-            : 'border-gray-200 dark:border-gray-700'
+          isForeignHere && foreignDragOver === 'core'
+            ? 'border-red-300 dark:border-red-700 bg-red-50/30 dark:bg-red-900/10 cursor-not-allowed'
+            : isDropHere
+              ? 'border-blue-400 dark:border-blue-500 bg-blue-50/30 dark:bg-blue-900/10'
+              : 'border-gray-200 dark:border-gray-700'
         }`}
+        onDragEnter={(e) => {
+          if (isFlatDragging) {
+            e.preventDefault();
+            setForeignDragOver('core');
+          }
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setForeignDragOver(null);
+          }
+        }}
         onDragOver={(e) => {
+          if (isFlatDragging) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'none';
+            return;
+          }
           if (subcat.skills.length === 0) handleDragOverEmpty(e, subIdx);
         }}
         onDrop={(e) => {
+          if (isFlatDragging) { e.preventDefault(); return; }
           if (subcat.skills.length === 0) handleDrop(e, subIdx, 0);
         }}
       >
@@ -385,7 +532,7 @@ export function MenuManageDialog({ onClose }: Props) {
   return (
     <DraggableResizableDialog
       initialWidth={600}
-      initialHeight={640}
+      initialHeight={720}
       minWidth={450}
       minHeight={400}
       storageKey="menu-manage"
@@ -469,8 +616,28 @@ export function MenuManageDialog({ onClose }: Props) {
               {/* Flat mode: show all skills without subcategory grouping */}
               {draft.core.length > 0 && (
                 <div
-                  className="border rounded-lg p-3 border-gray-200 dark:border-gray-700 space-y-0.5 min-h-[32px]"
+                  className={`border rounded-lg p-3 space-y-0.5 min-h-[32px] transition-colors ${
+                    foreignDragOver === 'core'
+                      ? 'border-red-300 dark:border-red-700 bg-red-50/30 dark:bg-red-900/10 cursor-not-allowed'
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                  onDragEnter={(e) => {
+                    if (isFlatDragging) {
+                      e.preventDefault();
+                      setForeignDragOver('core');
+                    }
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setForeignDragOver(null);
+                    }
+                  }}
                   onDragOver={(e) => {
+                    if (isFlatDragging) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'none';
+                      return;
+                    }
                     e.preventDefault();
                     const allSkills = draft.core[0]?.skills || [];
                     if (allSkills.length > 0) {
@@ -498,6 +665,102 @@ export function MenuManageDialog({ onClose }: Props) {
             <p className="text-xs text-gray-400 dark:text-gray-500 italic px-2 py-2">No subcategories</p>
           )}
         </div>
+
+        {/* Utility */}
+        {draft.utility.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-1 mb-2">
+              {CATEGORY_LABELS.utility[lang]}
+            </h3>
+            <div
+              className={`border rounded-lg p-3 space-y-0.5 min-h-[32px] transition-colors ${
+                foreignDragOver === 'utility'
+                  ? 'border-red-300 dark:border-red-700 bg-red-50/30 dark:bg-red-900/10 cursor-not-allowed'
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}
+              onDragEnter={(e) => {
+                if (isDragging || (isFlatDragging && flatDragSourceRef.current?.category !== 'utility')) {
+                  e.preventDefault();
+                  setForeignDragOver('utility');
+                }
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setForeignDragOver(null);
+                }
+              }}
+              onDragOver={(e) => {
+                if (isDragging || (isFlatDragging && flatDragSourceRef.current?.category !== 'utility')) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'none';
+                  return;
+                }
+                e.preventDefault();
+                if (draft.utility.length > 0) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const y = e.clientY - rect.top;
+                  const itemHeight = rect.height / draft.utility.length;
+                  const idx = Math.min(draft.utility.length, Math.floor(y / itemHeight + 0.5));
+                  setFlatDropTarget({ category: 'utility', insertIdx: idx });
+                }
+              }}
+              onDrop={(e) => {
+                const target = flatDropTarget;
+                if (target && target.category === 'utility') handleFlatDrop(e, 'utility', target.insertIdx);
+              }}
+            >
+              {draft.utility.map((sk, idx) => renderFlatSkillRow('utility', sk, idx, draft.utility.length))}
+            </div>
+          </div>
+        )}
+
+        {/* External */}
+        {draft.external.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-1 mb-2">
+              {CATEGORY_LABELS.external[lang]}
+            </h3>
+            <div
+              className={`border rounded-lg p-3 space-y-0.5 min-h-[32px] transition-colors ${
+                foreignDragOver === 'external'
+                  ? 'border-red-300 dark:border-red-700 bg-red-50/30 dark:bg-red-900/10 cursor-not-allowed'
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}
+              onDragEnter={(e) => {
+                if (isDragging || (isFlatDragging && flatDragSourceRef.current?.category !== 'external')) {
+                  e.preventDefault();
+                  setForeignDragOver('external');
+                }
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setForeignDragOver(null);
+                }
+              }}
+              onDragOver={(e) => {
+                if (isDragging || (isFlatDragging && flatDragSourceRef.current?.category !== 'external')) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'none';
+                  return;
+                }
+                e.preventDefault();
+                if (draft.external.length > 0) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const y = e.clientY - rect.top;
+                  const itemHeight = rect.height / draft.external.length;
+                  const idx = Math.min(draft.external.length, Math.floor(y / itemHeight + 0.5));
+                  setFlatDropTarget({ category: 'external', insertIdx: idx });
+                }
+              }}
+              onDrop={(e) => {
+                const target = flatDropTarget;
+                if (target && target.category === 'external') handleFlatDrop(e, 'external', target.insertIdx);
+              }}
+            >
+              {draft.external.map((sk, idx) => renderFlatSkillRow('external', sk, idx, draft.external.length))}
+            </div>
+          </div>
+        )}
 
       </div>
 

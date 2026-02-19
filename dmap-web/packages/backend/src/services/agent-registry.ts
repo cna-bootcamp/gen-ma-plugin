@@ -467,8 +467,10 @@ function discoverSkillsForMenus(projectDir: string): Array<{
     }
 
     // Labels: prefer i18n, fallback to description (ko) / skill name (en)
-    const koName = i18n?.ko?.name || description || dir.name;
-    const enName = i18n?.en?.name || dir.name;
+    // 메뉴 라벨은 20자 이내로 제한
+    const MAX_LABEL_LENGTH = 20;
+    const koName = (i18n?.ko?.name || description || dir.name).slice(0, MAX_LABEL_LENGTH);
+    const enName = (i18n?.en?.name || dir.name).slice(0, MAX_LABEL_LENGTH);
 
     skills.push({ name: dir.name, category, labels: { ko: koName, en: enName } });
   }
@@ -517,8 +519,15 @@ export function generateDefaultMenus(projectDir: string): MenuConfig {
     });
   }
 
+  // 유틸리티 고정 라벨 (SKILL.md i18n보다 우선)
+  const UTILITY_LABELS: Record<string, { ko: string; en: string }> = {
+    'setup': { ko: '플러그인 초기설정', en: 'Plugin Setup' },
+    'add-ext-skill': { ko: '플러그인 추가', en: 'Add Plugin' },
+    'remove-ext-skill': { ko: '플러그인 제거', en: 'Remove Plugin' },
+    'help': { ko: '도움말', en: 'Help' },
+  };
+
   // 유틸리티 메뉴 고정 순서: setup → 기타 → add-ext-skill → remove-ext-skill → help
-  // Utility: fixed order — setup first, then others, add-ext-skill, remove-ext-skill, help last
   const UTILITY_HEAD = ['setup'];
   const UTILITY_TAIL = ['add-ext-skill', 'remove-ext-skill', 'help'];
   const fixedSet = new Set([...UTILITY_HEAD, ...UTILITY_TAIL]);
@@ -526,14 +535,14 @@ export function generateDefaultMenus(projectDir: string): MenuConfig {
 
   for (const name of UTILITY_HEAD) {
     const found = utilityMap.find(s => s.name === name);
-    if (found) utility.push(found);
+    if (found) utility.push({ ...found, labels: UTILITY_LABELS[name] || found.labels });
   }
   // Other utility skills (not in fixed list), alphabetically
   const others = utilityMap.filter(s => !fixedSet.has(s.name)).sort((a, b) => a.name.localeCompare(b.name));
   utility.push(...others);
   for (const name of UTILITY_TAIL) {
     const found = utilityMap.find(s => s.name === name);
-    if (found) utility.push(found);
+    if (found) utility.push({ ...found, labels: UTILITY_LABELS[name] || found.labels });
   }
 
   // External: alphabetical

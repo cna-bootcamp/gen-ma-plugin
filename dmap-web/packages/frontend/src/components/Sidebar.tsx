@@ -104,7 +104,7 @@ export function Sidebar() {
         key={skill.name}
         skill={displaySkill}
         isSelected={selectedSkill?.name === skill.name}
-        onClick={() => handleSkillClick(skill)}
+        onClick={() => handleSkillClick(displaySkill)}
       />
     );
   };

@@ -260,7 +260,7 @@ export function ChatPanel() {
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   {selectedSkill.name === '__prompt__'
                     ? `${selectedSkill.icon} ${t('prompt.title')}`
-                    : `${selectedSkill.icon} ${t(`skill.${selectedSkill.name}.name` as keyof Translations) || selectedSkill.displayName}`}
+                    : <>{selectedSkill.icon} <span className="text-gray-400 dark:text-gray-500 font-normal">[{selectedSkill.name}]</span> {t(`skill.${selectedSkill.name}.name` as keyof Translations) || selectedSkill.displayName}</>}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {selectedSkill.name === '__prompt__'

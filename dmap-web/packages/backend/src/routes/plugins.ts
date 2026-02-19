@@ -187,6 +187,9 @@ pluginsRouter.post('/:id/menus/ai-recommend', async (req, res) => {
         const i18nEnNameMatch = yaml.match(/en:\s*\n\s+name:\s*(.+)/);
         if (i18nKoNameMatch) koName = i18nKoNameMatch[1].trim().replace(/^['"]|['"]$/g, '');
         if (i18nEnNameMatch) enName = i18nEnNameMatch[1].trim().replace(/^['"]|['"]$/g, '');
+
+        // i18n이 없으면 description을 한글명 fallback으로 사용
+        if (!i18nKoNameMatch && description) koName = description;
       }
 
       // Extract description section from body (after frontmatter)
@@ -218,49 +221,82 @@ pluginsRouter.post('/:id/menus/ai-recommend', async (req, res) => {
       }
     }
 
-    // utility/external은 규칙 기반 분류 (AI 불필요) - 고정 순서 보장
+    // 고정 유틸리티 스킬 라벨 (AI 추천 불필요)
+    const UTILITY_LABELS: Record<string, { ko: string; en: string }> = {
+      'setup': { ko: '플러그인 초기설정', en: 'Plugin Setup' },
+      'add-ext-skill': { ko: '플러그인 추가', en: 'Add Plugin' },
+      'remove-ext-skill': { ko: '플러그인 제거', en: 'Remove Plugin' },
+      'help': { ko: '도움말', en: 'Help' },
+    };
     const UTILITY_ORDER = ['setup', 'add-ext-skill', 'remove-ext-skill', 'help'];
-    const utility: MenuSkillItem[] = [];
+
+    // 고정 유틸리티 vs AI 추천 대상 유틸리티 분리
+    const fixedUtility: MenuSkillItem[] = [];
+    const nonFixedUtility: SkillInfo[] = [];
     for (const name of UTILITY_ORDER) {
       const found = utilitySkills.find(s => s.name === name);
-      if (found) utility.push({ name: found.name, labels: { ko: found.koName, en: found.enName } });
+      if (found) {
+        fixedUtility.push({ name: found.name, labels: UTILITY_LABELS[name] || { ko: found.koName, en: found.enName } });
+      }
     }
-    // Any other utility skills not in fixed order
     for (const s of utilitySkills) {
       if (!UTILITY_ORDER.includes(s.name)) {
-        utility.push({ name: s.name, labels: { ko: s.koName, en: s.enName } });
+        nonFixedUtility.push(s);
       }
     }
 
-    const external: MenuSkillItem[] = externalSkills
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(s => ({ name: s.name, labels: { ko: s.koName, en: s.enName } }));
+    // AI 추천 대상 스킬: core + 비고정 유틸리티 + 외부
+    const labelOnlySkills = [...nonFixedUtility, ...externalSkills];
+    const allAiSkillCount = coreSkills.length + labelOnlySkills.length;
 
-    // 3. If only 0-1 core skills, no need for AI classification
-    if (coreSkills.length <= 1) {
+    // AI 추천 대상이 없으면 규칙 기반 폴백
+    if (allAiSkillCount === 0) {
+      const utility: MenuSkillItem[] = [...fixedUtility];
+      const external: MenuSkillItem[] = [];
+      res.json({ core: [], utility, external });
+      return;
+    }
+
+    // core 0-1개이고 라벨 추천 대상도 없으면 AI 불필요
+    if (coreSkills.length <= 1 && labelOnlySkills.length === 0) {
       const core: MenuSubcategory[] = coreSkills.length === 1
         ? [{ id: 'default', labels: { ko: '기본', en: 'Default' }, skills: [{ name: coreSkills[0].name, labels: { ko: coreSkills[0].koName, en: coreSkills[0].enName } }] }]
         : [];
+      const utility: MenuSkillItem[] = [...fixedUtility];
+      const external: MenuSkillItem[] = externalSkills
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(s => ({ name: s.name, labels: { ko: s.koName, en: s.enName } }));
       res.json({ core, utility, external });
       return;
     }
 
-    // Claude SDK로 core 스킬을 의미 기반 하위 카테고리로 자동 분류 요청
-    const skillListForAi = coreSkills.map(s =>
+    // Claude SDK로 core 스킬 분류 + 모든 스킬 라벨 추천 요청
+    const coreSkillListForAi = coreSkills.map(s =>
       `- name: "${s.name}", type: "${s.type}", description: "${s.description}"`
     ).join('\n');
 
-    const aiPrompt = `You are a menu classification expert. Given the following plugin skills, group them into subcategories based on their purpose/use-case.
+    const labelOnlyListForAi = labelOnlySkills.map(s =>
+      `- name: "${s.name}", type: "${s.type}", description: "${s.description}"`
+    ).join('\n');
 
-SKILLS:
-${skillListForAi}
+    const aiPrompt = `You are a menu classification and naming expert. You have two tasks:
+
+TASK 1: Classify CORE skills into subcategories and generate Korean/English display names.
+TASK 2: Generate Korean/English display names for LABEL-ONLY skills (no classification needed).
+
+CORE SKILLS (classify + name):
+${coreSkillListForAi || '(none)'}
+
+LABEL-ONLY SKILLS (name only):
+${labelOnlyListForAi || '(none)'}
 
 RULES:
-1. Group skills by their purpose/use-case (e.g., "탐색" for exploration/analysis, "개발" for development/implementation)
-2. Each subcategory must have at least 2 skills. If only 1 skill would be in a group, merge it with the most related group.
-3. Provide Korean (ko) and English (en) names for each subcategory. Names should be short nouns (1-2 words).
-4. Provide Korean (ko) and English (en) display names for each skill. Names should be short nouns based on the skill's description.
-5. Return ONLY valid JSON, no markdown code fences, no explanation.
+1. For CORE skills: Group by purpose/use-case (e.g., "탐색" for exploration, "개발" for development). Each subcategory must have at least 2 skills. If only 1 skill would be in a group, merge with the most related group.
+2. Provide Korean (ko) and English (en) names for subcategories. Names should be short nouns (1-2 words).
+3. Generate Korean (ko) and English (en) display names for EVERY skill. Read each skill's description carefully and create a meaningful Korean name that reflects its purpose.
+4. Korean names MUST be natural Korean nouns (e.g., "개발환경 준비", "코드 리뷰"), NOT English transliterations, NOT the English skill name.
+5. All label names MUST be 20 characters or less.
+6. Return ONLY valid JSON, no markdown code fences, no explanation.
 
 RESPONSE FORMAT (JSON only):
 {
@@ -272,10 +308,13 @@ RESPONSE FORMAT (JSON only):
         { "name": "skill-name", "labels": { "ko": "한글명", "en": "English Name" } }
       ]
     }
+  ],
+  "labelOnly": [
+    { "name": "skill-name", "labels": { "ko": "한글명", "en": "English Name" } }
   ]
 }`;
 
-    log.info(`AI recommend: classifying ${coreSkills.length} core skills for plugin ${pluginId}`);
+    log.info(`AI recommend: classifying ${coreSkills.length} core + ${labelOnlySkills.length} label-only skills for plugin ${pluginId}`);
 
     try {
       const { query } = await import('@anthropic-ai/claude-code');
@@ -293,7 +332,6 @@ RESPONSE FORMAT (JSON only):
 
       for await (const msg of conversation) {
         const message = msg as Record<string, unknown>;
-        // Collect text from assistant messages
         if (message.type === 'assistant' && message.message) {
           const m = message.message as { content?: Array<{ type: string; text?: string }> };
           if (m.content) {
@@ -302,7 +340,6 @@ RESPONSE FORMAT (JSON only):
             }
           }
         }
-        // Collect text from result message
         if (message.type === 'result') {
           const content = message.content as Array<{ type: string; text?: string }> | undefined;
           if (content) {
@@ -315,24 +352,55 @@ RESPONSE FORMAT (JSON only):
 
       // Parse JSON from AI response (strip markdown fences if present)
       const jsonStr = aiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-      const parsed = JSON.parse(jsonStr) as { subcategories: Array<{ id: string; labels: { ko: string; en: string }; skills: MenuSkillItem[] }> };
+      const parsed = JSON.parse(jsonStr) as {
+        subcategories: Array<{ id: string; labels: { ko: string; en: string }; skills: MenuSkillItem[] }>;
+        labelOnly?: MenuSkillItem[];
+      };
 
-      const core: MenuSubcategory[] = parsed.subcategories.map(sub => ({
+      // core 서브카테고리
+      const core: MenuSubcategory[] = (parsed.subcategories || []).map(sub => ({
         id: sub.id,
         labels: sub.labels,
         skills: sub.skills,
       }));
 
-      log.info(`AI recommend: created ${core.length} subcategories for ${pluginId}`);
+      // AI가 추천한 라벨을 name으로 매핑
+      const aiLabelMap = new Map<string, { ko: string; en: string }>();
+      for (const item of parsed.labelOnly || []) {
+        aiLabelMap.set(item.name, item.labels);
+      }
+
+      // utility: 고정 순서 + AI 추천 라벨 적용된 비고정 스킬
+      const utility: MenuSkillItem[] = [...fixedUtility];
+      for (const s of nonFixedUtility) {
+        const aiLabels = aiLabelMap.get(s.name);
+        utility.push({ name: s.name, labels: aiLabels || { ko: s.koName, en: s.enName } });
+      }
+
+      // external: AI 추천 라벨 적용
+      const external: MenuSkillItem[] = externalSkills
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(s => {
+          const aiLabels = aiLabelMap.get(s.name);
+          return { name: s.name, labels: aiLabels || { ko: s.koName, en: s.enName } };
+        });
+
+      log.info(`AI recommend: created ${core.length} subcategories, ${aiLabelMap.size} label-only for ${pluginId}`);
       res.json({ core, utility, external });
     } catch (aiError) {
-      // AI 분류 실패 시 단일 "기본" 카테고리로 폴백
+      // AI 분류 실패 시 규칙 기반 폴백
       log.warn('AI recommend failed, using default menu:', aiError);
-      const core: MenuSubcategory[] = [{
-        id: 'default',
-        labels: { ko: '기본', en: 'Default' },
-        skills: coreSkills.map(s => ({ name: s.name, labels: { ko: s.koName, en: s.enName } })),
-      }];
+      const core: MenuSubcategory[] = coreSkills.length > 0
+        ? [{
+            id: 'default',
+            labels: { ko: '기본', en: 'Default' },
+            skills: coreSkills.map(s => ({ name: s.name, labels: { ko: s.koName, en: s.enName } })),
+          }]
+        : [];
+      const utility: MenuSkillItem[] = [...fixedUtility, ...nonFixedUtility.map(s => ({ name: s.name, labels: { ko: s.koName, en: s.enName } }))];
+      const external: MenuSkillItem[] = externalSkills
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(s => ({ name: s.name, labels: { ko: s.koName, en: s.enName } }));
       res.json({ core, utility, external });
     }
   } catch (error: unknown) {

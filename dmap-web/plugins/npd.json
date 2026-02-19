@@ -1,6 +1,6 @@
 {
   "pluginName": "npd",
-  "registeredAt": "2026-02-19T07:35:27.048Z",
+  "registeredAt": "2026-02-19T07:48:39.886Z",
   "agents": {
     "npd:ai-engineer:ai-engineer": {
       "description": "AI/ML 활용 기회 발굴, AI 연동 설계, AI 기능 구현 전문가. 기획부터 개발까지 전 단계 참여.",
@@ -79,42 +79,42 @@
         "id": "default",
         "labels": {
           "ko": "기본",
-          "en": "General"
+          "en": "Default"
         },
         "skills": [
           {
-            "name": "create",
-            "labels": {
-              "ko": "새 프로젝트 생성",
-              "en": "create"
-            }
-          },
-          {
             "name": "plan",
             "labels": {
-              "ko": "기획",
-              "en": "plan"
+              "ko": "기획 협업",
+              "en": "Planning"
             }
           },
           {
             "name": "design",
             "labels": {
-              "ko": "설계",
-              "en": "design"
+              "ko": "설계 협업",
+              "en": "Design"
+            }
+          },
+          {
+            "name": "create",
+            "labels": {
+              "ko": "프로젝트 생성",
+              "en": "Create Project"
             }
           },
           {
             "name": "develop",
             "labels": {
-              "ko": "개발",
-              "en": "develop"
+              "ko": "개발 협업",
+              "en": "Development"
             }
           },
           {
             "name": "deploy",
             "labels": {
-              "ko": "배포",
-              "en": "deploy"
+              "ko": "배포 협업",
+              "en": "Deployment"
             }
           }
         ]
@@ -124,29 +124,36 @@
       {
         "name": "setup",
         "labels": {
-          "ko": "NPD 플러그인 초기 설정 (MCP 서버 설치, GitHub 토큰 설정)",
-          "en": "setup"
+          "ko": "플러그인 초기설정",
+          "en": "Plugin Setup"
+        }
+      },
+      {
+        "name": "prepare",
+        "labels": {
+          "ko": "개발환경 준비",
+          "en": "Env Setup"
         }
       },
       {
         "name": "add-ext-skill",
         "labels": {
-          "ko": "외부호출 스킬(ext-{대상플러그인}) 추가 유틸리티",
-          "en": "add-ext-skill"
+          "ko": "플러그인 추가",
+          "en": "Add Plugin"
         }
       },
       {
         "name": "remove-ext-skill",
         "labels": {
-          "ko": "외부호출 스킬(ext-{대상플러그인}) 제거 유틸리티",
-          "en": "remove-ext-skill"
+          "ko": "플러그인 제거",
+          "en": "Remove Plugin"
         }
       },
       {
         "name": "help",
         "labels": {
-          "ko": "NPD 플러그인 사용법 및 명령어 안내",
-          "en": "help"
+          "ko": "도움말",
+          "en": "Help"
         }
       }
     ],
