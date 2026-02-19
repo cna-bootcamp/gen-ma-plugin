@@ -406,7 +406,7 @@ Use the Skill tool to invoke the `abra:setup` skill with all arguments passed th
 > 커스텀 경로는 기본 디렉토리를 **대체하지 않고 Add**함.
 > `${CLAUDE_PLUGIN_ROOT}` 환경변수로 플러그인 루트 절대 경로 참조 가능.
 
-**예제** (`samples/abra/.claude-plugin/plugin.json`):
+**예제**
 
 ```json
 {
@@ -511,7 +511,7 @@ Use the Skill tool to invoke the `abra:setup` skill with all arguments passed th
 }
 ```
 
-**예제** (`samples/abra/.claude-plugin/marketplace.json`):
+**예제** 
 
 ```json
 {

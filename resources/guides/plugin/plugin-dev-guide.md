@@ -278,8 +278,44 @@ DMAP 표준에 맞춰 플러그인의 전체 구조 설계.
 └── README.md
 ```
 
+**marketplace.json 작성**:      
+아래 형식으로 작성. '{마켓플레이스명}'을 '{플러그인명}'과 동일하게 함. '{사용자명}'은 사용자에게 요청.     
+```json
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "{마켓플레이스명}",
+  "owner": {
+    "name": "{사용자명}"
+  },
+  "plugins": [
+    {
+      "name": "{플러그인명}",
+      "version": "0.0.1",
+      "source": "./"
+    }
+  ]
+}
+```
+
+**plugin.json 작성:**           
+'{플러그인 설명}', '{키워드}'는 적절히 작성       
+```
+{
+  "name": "{플러그인명}",
+  "version": "0.0.1",
+  "description": "{플러그인 설명}",
+  "author": {
+    "name": "{사용자명}"
+  },
+  "license": "MIT",
+  "keywords": ["{키워드1}", "{키워드2}", ]
+}
+```
+
+
 > `plugin.json`과 `marketplace.json` 작성 시
 > DMAP 메인 표준(`standards/plugin-standard.md`)의 `## 배포 > plugin.json`과 `## 배포 > marketplace.json` 섹션 참조.
+
 
 **Step 2. Gateway 설정**
 
@@ -388,7 +424,7 @@ with all arguments passed through.
 |----------|----------|
 | 프로젝트 구조 | 표준 디렉토리 구조를 준수 |
 | 필수 파일 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` 존재 |
-| 필수 파일 구조 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` 이 스킬 메인 표준 준수 |
+| 필수 파일 구조 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`이 '*Step 1. 플러그인 스켈레톤 생성' 규칙 준수 |
 | 에이전트 쌍 | 모든 에이전트에 `AGENT.md` + `agentcard.yaml` 존재 |
 | 스킬 구조 | 모든 스킬에 `SKILL.md` 존재, frontmatter 포함 |
 | setup 스킬 | setup 스킬 존재, `disable-model-invocation` 미사용 |
