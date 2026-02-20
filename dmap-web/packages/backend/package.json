@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "node --import tsx/esm --watch-path=src src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^2.1.49",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.49",
     "@dmap-web/shared": "*",
     "@esbuild/win32-x64": "^0.27.3",
     "cors": "^2.8.5",

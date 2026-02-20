@@ -357,7 +357,7 @@ async function runQuery(
   externalAbortController?: AbortController,
   fileLog?: LogFn,
 ): Promise<RunQueryResult> {
-  const { query } = await import('@anthropic-ai/claude-code');
+  const { query } = await import('@anthropic-ai/claude-agent-sdk');
 
   const abortController = externalAbortController || new AbortController();
   options.abortController = abortController;
@@ -366,7 +366,6 @@ async function runQuery(
   let sdkSessionId: string | undefined;
   let numTurns = 0;
   let pendingQuestions: RunQueryResult['pendingQuestions'] = undefined;
-
   for await (const message of query({
     prompt,
     options: options as any,
@@ -619,19 +618,24 @@ export async function executeSkill(
   // SDK 호출 옵션 구성 - acceptEdits: 파일 편집 자동 수락 + OAuth 인증 호환
   // NOTE: bypassPermissions는 --dangerously-skip-permissions 플래그를 사용하며 API 키 필수.
   //       Max 구독(OAuth) 환경에서는 acceptEdits를 사용해야 함.
+  // CLAUDECODE 환경변수 제거: Claude Code 세션 내부에서 서버 실행 시 중첩 세션 방지
+  const cleanEnv = { ...process.env };
+  delete cleanEnv.CLAUDECODE;
+
   const options: Record<string, unknown> = {
     model: getDefaultSdkModel(),
     permissionMode: 'acceptEdits',
     cwd: dmapProjectDir,
     maxTurns: 50,
+    env: cleanEnv,
     // 시스템 설치된 Claude Code CLI 사용 (Max 구독 OAuth 인증 공유)
     pathToClaudeCodeExecutable: process.env.CLAUDE_CODE_PATH || resolveClaudeBinary(),
     // Prevent the model from delegating to agents/skills instead of working directly
     disallowedTools: ['EnterPlanMode', 'ExitPlanMode', 'TodoWrite'],
     ...(allAgentCount > 0 ? { agents: allAgents } : {}),
-    // Place SKILL.md in system prompt so it's treated as instructions, not user input
+    // Place SKILL.md in system prompt via preset+append (claude-agent-sdk 방식)
     ...(skillContent ? {
-      appendSystemPrompt: `${lang && lang !== 'ko' ? `### LANGUAGE OVERRIDE (HIGHEST PRIORITY) ###
+      systemPrompt: { type: 'preset' as const, preset: 'claude_code' as const, append: `${lang && lang !== 'ko' ? `### LANGUAGE OVERRIDE (HIGHEST PRIORITY) ###
 You MUST respond ONLY in English. Every single message, explanation, question, and status update you produce MUST be written in English.
 The skill instructions below are written in Korean — read and understand them, but ALL your output MUST be in English. Do NOT output any Korean text.
 ### END LANGUAGE OVERRIDE ###\n\n` : ''}IMPORTANT: You are a skill executor. Execute the skill instructions below using available tools (Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch, Task, etc.).${skillName.startsWith('ext-') ? ' You MAY use the Skill tool to invoke external plugin skills as specified in the skill instructions.' : ' Do NOT invoke other skills.'} Do NOT enter plan mode. Do NOT use TodoWrite.
@@ -643,7 +647,7 @@ ${ASK_USER_INSTRUCTION}
 ${SKILL_CHAIN_FILE_CONVENTION}${previousSkillName ? `\n\nPREVIOUS SKILL RESULT:\nThe previous skill "${previousSkillName}" may have saved results at: output/${previousSkillName}-result.md\nRead this file FIRST using the Read tool before starting your workflow.` : ''}
 
 === SKILL INSTRUCTIONS ===
-${skillContent}\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${omcAgents ? getSkillPatterns() : getSkillPatternsFallback()}`,
+${skillContent}\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${omcAgents ? getSkillPatterns() : getSkillPatternsFallback()}` },
     } : {}),
   };
 
@@ -653,12 +657,14 @@ ${skillContent}\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${omcAgents ? getSkillP
 
   // Payload size diagnostics (Windows 32KB CLI limit)
   const agentsSize = options.agents ? JSON.stringify(options.agents).length : 0;
-  const promptSize = typeof options.appendSystemPrompt === 'string' ? (options.appendSystemPrompt as string).length : 0;
+  const sysPrompt = options.systemPrompt as { append?: string } | undefined;
+  const promptSize = sysPrompt?.append ? sysPrompt.append.length : 0;
   log.info(`Payload: agents=${agentsSize}B, systemPrompt=${promptSize}B, total=${agentsSize + promptSize}B`);
 
+  const fileLog = await createFileLogger(dmapProjectDir, skillName);
+
   try {
-    const fileLog = await createFileLogger(dmapProjectDir, skillName);
-    await fileLog('options', { model: options.model, maxTurns: options.maxTurns, resumeSessionId, disallowedTools: options.disallowedTools, hasAppendSystemPrompt: !!options.appendSystemPrompt, omcAgentCount: omcAgents ? Object.keys(omcAgents).length : 0, pluginAgentCount, totalAgentCount: allAgentCount, payloadBytes: agentsSize + promptSize });
+    await fileLog('options', { model: options.model, maxTurns: options.maxTurns, resumeSessionId, disallowedTools: options.disallowedTools, hasSystemPrompt: !!options.systemPrompt, omcAgentCount: omcAgents ? Object.keys(omcAgents).length : 0, pluginAgentCount, totalAgentCount: allAgentCount, payloadBytes: agentsSize + promptSize });
 
     const isEnglish = lang && lang !== 'ko';
     const fileAttachment = buildFileAttachment(filePaths, !!isEnglish);
@@ -768,10 +774,13 @@ ${skillContent}\n\n=== AGENT ORCHESTRATION PATTERNS ===\n${omcAgents ? getSkillP
       log.info(`Skill execution aborted for "${skillName}"`);
       return { fullyComplete: true };
     }
-    log.error('Error:', error);
+    const errMsg = (error as Error).message || 'Claude SDK execution failed';
+    const errStack = (error as Error).stack || '';
+    log.error(`SDK Error: ${errMsg}\n${errStack}`);
+    await fileLog('ERROR', { message: errMsg, stack: errStack });
     callbacks.onEvent({
       type: 'error',
-      message: (error as Error).message || 'Claude SDK execution failed',
+      message: errMsg,
     });
     return { fullyComplete: true };
   }
@@ -809,18 +818,23 @@ export async function executePrompt(
 
   const isEnglish = lang && lang !== 'ko';
 
+  // CLAUDECODE 환경변수 제거: Claude Code 세션 내부에서 서버 실행 시 중첩 세션 방지
+  const cleanEnvPrompt = { ...process.env };
+  delete cleanEnvPrompt.CLAUDECODE;
+
   const options: Record<string, unknown> = {
     model: getDefaultSdkModel(),
     permissionMode: 'acceptEdits',
     cwd: dmapProjectDir,
     maxTurns: 50,
+    env: cleanEnvPrompt,
     // 시스템 설치된 Claude Code CLI 사용 (Max 구독 OAuth 인증 공유)
     pathToClaudeCodeExecutable: process.env.CLAUDE_CODE_PATH || resolveClaudeBinary(),
     disallowedTools: ['EnterPlanMode', 'ExitPlanMode', 'TodoWrite'],
     ...(allAgentCount > 0 ? { agents: allAgents } : {}),
-    appendSystemPrompt: `${isEnglish ? `You MUST respond ONLY in English.\n\n` : ''}You are a helpful assistant working in the project directory. Execute the user's request using available tools (Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch, Task, etc.). Do NOT invoke other skills. Do NOT enter plan mode. Do NOT use TodoWrite.
+    systemPrompt: { type: 'preset' as const, preset: 'claude_code' as const, append: `${isEnglish ? `You MUST respond ONLY in English.\n\n` : ''}You are a helpful assistant working in the project directory. Execute the user's request using available tools (Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch, Task, etc.). Do NOT invoke other skills. Do NOT enter plan mode. Do NOT use TodoWrite.
 AGENT DELEGATION: You MAY use the Task tool for parallel or complex work. Available OMC agents are injected with "omc-" prefix.${pluginAgentGuide}
-${ASK_USER_INSTRUCTION}`,
+${ASK_USER_INSTRUCTION}` },
   };
 
   if (resumeSessionId) {
