@@ -9,6 +9,7 @@
     - [문제: 기존 플러그인 개발의 불편함](#문제-기존-플러그인-개발의-불편함)
     - [DMAP의 해결 방식](#dmap의-해결-방식)
     - [핵심 가치](#핵심-가치)
+    - [지원 런타임](#지원-런타임)
   - [빠른 시작](#빠른-시작)
     - [사전 요구사항](#사전-요구사항)
     - [DMAP 빌더 설치](#dmap-빌더-설치)
@@ -180,6 +181,10 @@ claude plugin install dmap@dmap
   
 ### Claude Code에서 사용
 
+**사용법 동영상 보기**:   
+아래 링크의 압축파일 다운로드 후 압축 해제하여 각 일련번호별로 실행 하세요.   
+https://drive.google.com/file/d/1wabVv4Ioj3FcxSH_Lnd-BDsWzoKH7-W-/view?usp=drive_link
+    
 플러그인 디렉토리 생성: 
 ```
 mkdir -p {작업디렉토리}/{플러그인 디렉토리}
