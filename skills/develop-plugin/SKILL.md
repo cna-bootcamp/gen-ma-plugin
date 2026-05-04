@@ -415,6 +415,7 @@ Step 4-A(런타임 어댑터 포인터 생성)가 이 매핑을 읽어 각 런�
     | 샘플 | `{PLUGIN_DIR}/resources/samples/` | 
 
   - `{DMAP_PLUGIN_DIR}/resources/guides/combine-prompt.md`는 반드시 포함
+  - `{DMAP_PLUGIN_DIR}/resources/guides/call-subagent.md`는 반드시 포함
 
 - '도구' 유형의 자원은 복사 후 아래 규칙을 적용
   - **`.env` 위치 고정**: `{PLUGIN_DIR}/gateway/tools/.env` 단일 파일로 관리 (개별 도구 서브디렉토리에 생성 금지)
@@ -806,6 +807,7 @@ Antigravity: `~/.gemini/antigravity/knowledge/AGENTS.md`에 아래 지침을 추
 | 필수 파일 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` 존재 |
 | 필수 파일 구조 | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` 이 스킬 메인 표준 준수 |
 | 공유자원 복사 | `combine-prompt.md` 복사 확인 | 
+| 공유자원 복사 | `call-subagent.md` 복사 확인 | 
 | 에이전트 쌍 | 모든 에이전트에 `AGENT.md` + `agentcard.yaml` 존재 |
 | 스킬 구조 | 모든 스킬에 `SKILL.md` 존재, frontmatter 포함 |
 | setup 스킬 | setup 스킬 존재 |
