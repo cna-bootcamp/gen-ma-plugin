@@ -1,0 +1,9 @@
+{
+  "name": "korean-law-mcp",
+  "type": "stdio",
+  "command": "npx",
+  "args": ["-y", "korean-law-mcp@latest"],
+  "env": {
+    "LAW_OC": "<YOUR_LAW_OC>"
+  }
+}

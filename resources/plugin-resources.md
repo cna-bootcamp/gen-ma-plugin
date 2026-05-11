@@ -105,6 +105,8 @@
 | 카테고리 | 도구명 | 설명 | 상세 |
 |---------|--------|------|------|
 | MCP 서버 | context7 | 라이브러리 공식 문서 검색 및 코드 예시 제공 | [상세](tools/context7.md) |
+| MCP 서버 | dart-mcp | DART·KRX 기반 한국 주식·공시 분석 | [상세](tools/dart-mcp.md) |
+| MCP 서버 | korean-law-mcp | 법제처 Open API 기반 한국 법령·판례 리서치 | [상세](tools/korean-law-mcp.md) |
 | 커스텀 앱 | dify_cli | Dify API 클라이언트 — DSL import/export, workflow publish/run | [상세](tools/dify-cli.md) |
 | 커스텀 앱 | validate_dsl | Dify DSL YAML 구조 검증 도구 | [상세](tools/validate-dsl.md) |
 | 커스텀 앱 | generate_image | Gemini (Nano Banana) 모델 기반 이미지 생성 | [상세](tools/generate-image.md) |

@@ -1,0 +1,10 @@
+{
+  "name": "dart-mcp",
+  "type": "stdio",
+  "command": "npx",
+  "args": ["-y", "korea-stock-mcp@latest"],
+  "env": {
+    "DART_API_KEY": "<YOUR_DART_API_KEY>",
+    "KRX_API_KEY": "<YOUR_KRX_API_KEY>"
+  }
+}
