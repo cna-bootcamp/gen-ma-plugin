@@ -131,11 +131,19 @@ Examples:
     if args.api_key:
         api_key = args.api_key
     else:
-        env_path = Path(__file__).resolve().parent / ".env"
-        load_dotenv(env_path)
+        def _find_dotenv() -> Path | None:
+            current = Path(__file__).resolve().parent
+            while True:
+                candidate = current / ".env"
+                if candidate.exists():
+                    return candidate
+                if current.name == "tools" or current.parent == current:
+                    return None
+                current = current.parent
+        load_dotenv(_find_dotenv())
         api_key = os.getenv('GEMINI_API_KEY')
         if not api_key:
-            parser.error(f"GEMINI_API_KEY not found in {env_path}. Use --api-key to provide it.")
+            parser.error("GEMINI_API_KEY not found in .env. Use --api-key to provide it.")
 
     # Get prompt
     prompt = None

@@ -23,14 +23,21 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-# .env 로드 (동일 디렉토리 우선, 없으면 상위 탐색)
+# .env 로드 (현재 위치에서 tools 디렉토리까지 올라가며 탐색)
 try:
     from dotenv import load_dotenv
-    env_path = Path(__file__).parent / ".env"
-    if env_path.exists():
-        load_dotenv(env_path)
-    else:
-        load_dotenv()
+
+    def _find_dotenv() -> Path | None:
+        current = Path(__file__).resolve().parent
+        while True:
+            candidate = current / ".env"
+            if candidate.exists():
+                return candidate
+            if current.name == "tools" or current.parent == current:
+                return None
+            current = current.parent
+
+    load_dotenv(_find_dotenv())
 except ImportError:
     pass
 

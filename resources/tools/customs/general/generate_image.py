@@ -1,17 +1,29 @@
 """
-Nano Banana (Gemini) 이미지 생성 스크립트
+OpenAI 이미지 생성 스크립트 (gpt-image-2)
 """
 import argparse
+import base64
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+from openai import OpenAI
+
+
+def _find_dotenv() -> Path | None:
+    """현재 파일 위치에서 tools 디렉토리까지 올라가며 .env 탐색"""
+    current = Path(__file__).resolve().parent
+    while True:
+        candidate = current / ".env"
+        if candidate.exists():
+            return candidate
+        if current.name == "tools" or current.parent == current:
+            return None
+        current = current.parent
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate images using Gemini Nano Banana model",
+        description="Generate images using OpenAI gpt-image-2 model",
         epilog="""
 Examples:
   python generate_image.py --prompt "아침 바다를 걷는 여성"
@@ -21,7 +33,6 @@ Examples:
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
-    # Mutually exclusive group for prompt input
     prompt_group = parser.add_mutually_exclusive_group(required=True)
     prompt_group.add_argument(
         "--prompt",
@@ -49,7 +60,7 @@ Examples:
     parser.add_argument(
         "--api-key",
         type=str,
-        help="Gemini API key (overrides .env file)"
+        help="OpenAI API key (overrides .env file)"
     )
 
     args = parser.parse_args()
@@ -58,17 +69,16 @@ Examples:
     if args.api_key:
         api_key = args.api_key
     else:
-        env_path = Path(__file__).resolve().parent / ".env"
-        load_dotenv(env_path)
-        api_key = os.getenv('GEMINI_API_KEY')
+        load_dotenv(_find_dotenv())
+        api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            parser.error(f"GEMINI_API_KEY not found in {env_path}. Use --api-key to provide it.")
+            parser.error("OPENAI_API_KEY not found in .env. Use --api-key to provide it.")
 
     # Get prompt
     if args.prompt:
         prompt = args.prompt
     else:
-        with open(args.prompt_file, 'r', encoding='utf-8') as f:
+        with open(args.prompt_file, "r", encoding="utf-8") as f:
             prompt = f.read().strip()
 
     # Create output directory if needed
@@ -76,30 +86,19 @@ Examples:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate image
-    client = genai.Client(api_key=api_key)
+    client = OpenAI(api_key=api_key)
 
-    system_prompt = "Always use a clean white background (#FFFFFF) for all generated images. 모든 텍스트는 한글로 작성하고, 꼭 필요한 경우에만 영문을 사용하세요 (예: SKILL.md, Haiku, Sonnet, Opus 등 고유명사)."
-
-    response = client.models.generate_content(
-        model="nano-banana-pro-preview",
-        contents=[prompt],
-        config=types.GenerateContentConfig(
-            response_modalities=["TEXT", "IMAGE"],
-            system_instruction=system_prompt,
-        ),
+    result = client.images.generate(
+        model="gpt-image-2-2026-04-21",
+        prompt=prompt,
     )
 
-    # Save results
-    output_path = output_dir / f"{args.output_name}.png"
+    image_bytes = base64.b64decode(result.data[0].b64_json)
 
-    for part in response.candidates[0].content.parts:
-        if part.text is not None:
-            print(part.text)
-        elif part.inline_data is not None:
-            image = part.inline_data
-            with open(output_path, "wb") as f:
-                f.write(image.data)
-            print(f"Image saved: {output_path} ({len(image.data)} bytes)")
+    output_path = output_dir / f"{args.output_name}.png"
+    with open(output_path, "wb") as f:
+        f.write(image_bytes)
+    print(f"Image saved: {output_path} ({len(image_bytes)} bytes)")
 
 
 if __name__ == "__main__":

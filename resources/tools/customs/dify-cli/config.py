@@ -4,7 +4,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent / ".env")
+def _find_dotenv() -> Path | None:
+    """현재 파일 위치에서 tools 디렉토리까지 올라가며 .env 탐색"""
+    current = Path(__file__).resolve().parent
+    while True:
+        candidate = current / ".env"
+        if candidate.exists():
+            return candidate
+        if current.name == "tools" or current.parent == current:
+            return None
+        current = current.parent
+
+load_dotenv(_find_dotenv())
 
 
 @dataclass

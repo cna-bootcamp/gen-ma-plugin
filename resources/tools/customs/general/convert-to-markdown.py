@@ -21,8 +21,18 @@ import io
 from pathlib import Path
 from dotenv import load_dotenv
 
-# tools/.env 파일에서 환경변수 로드
-load_dotenv(Path(__file__).resolve().parent / ".env")
+def _find_dotenv() -> Path | None:
+    """현재 파일 위치에서 tools 디렉토리까지 올라가며 .env 탐색"""
+    current = Path(__file__).resolve().parent
+    while True:
+        candidate = current / ".env"
+        if candidate.exists():
+            return candidate
+        if current.name == "tools" or current.parent == current:
+            return None
+        current = current.parent
+
+load_dotenv(_find_dotenv())
 
 from pptx import Presentation
 from pptx.util import Pt
